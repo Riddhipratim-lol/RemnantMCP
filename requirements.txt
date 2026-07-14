@@ -1,0 +1,24 @@
+# Model Context Protocol (MCP)
+fastmcp
+
+
+# LLM & Agent Frameworks
+langchain
+langchain-core
+langchain-community
+langgraph
+langchain-google-genai
+google-genai
+
+# Embeddings & Reranking
+voyageai
+
+# Database & Vector Clients
+psycopg2-binary
+qdrant-client
+neo4j
+
+# Utilities
+python-dotenv
+GitPython
+tiktoken
