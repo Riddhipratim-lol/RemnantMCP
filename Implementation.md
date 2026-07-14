@@ -88,15 +88,15 @@ For each of the five system layers, we specify the responsibilities, concrete ta
 ---
 
 ### Layer 1 Implementation Todo Checklist
-- [ ] **Scaffold Pipeline Package**: Create directory structure `remnant/ingestion/` with `__init__.py`.
-- [ ] **Git Parser Utility**: Implement helper using `gitpython` or subprocess to fetch git diffs (`git diff HEAD~1`), commit logs, and status.
-- [ ] **Secret Redaction Pass**: Implement regex patterns matching:
-  - [ ] GitHub Tokens (`ghp_[a-zA-Z0-9]{36}`)
-  - [ ] Generic API Keys (`api[_-]?key` style)
-  - [ ] Database Connection Strings (`postgresql://...`)
-- [ ] **Content Hashing Engine**: Add utility to calculate SHA-256 signatures of text blocks to skip identical payloads.
-- [ ] **Session Coordinator**: Build logic to query PostgreSQL for active sessions within the 4-hour window, generate UUIDs, and construct `ArtifactObject` objects.
-- [ ] **Unit Tests**: Implement mock tests for Git diff output, secret detection/redaction, and temporal grouping.
+- [x] **Scaffold Pipeline Package**: Create directory structure `remnant/ingestion/` with `__init__.py`.
+- [x] **Git Parser Utility**: Implement helper using `gitpython` or subprocess to fetch git diffs (`git diff HEAD~1`), commit logs, and status.
+- [x] **Secret Redaction Pass**: Implement regex patterns matching:
+  - [x] GitHub Tokens (`ghp_[a-zA-Z0-9]{36}`)
+  - [x] Generic API Keys (`api[_-]?key` style)
+  - [x] Database Connection Strings (`postgresql://...`)
+- [x] **Content Hashing Engine**: Add utility to calculate SHA-256 signatures of text blocks to skip identical payloads.
+- [x] **Session Coordinator**: Build logic to query PostgreSQL for active sessions within the 4-hour window, generate UUIDs, and construct `ArtifactObject` objects.
+- [x] **Unit Tests**: Implement mock tests for Git diff output, secret detection/redaction, and temporal grouping.
 
 ---
 
