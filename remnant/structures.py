@@ -1,6 +1,6 @@
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Dict, List, Optional
 
@@ -52,7 +52,36 @@ class MemoryObject:
     related_memory_ids: List[uuid.UUID] = field(default_factory=list)
     confidence_score: float = 1.0
     source_artifact_ids: List[uuid.UUID] = field(default_factory=list)
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     is_superseded: bool = False
     superseded_by: Optional[uuid.UUID] = None
+
+
+class RelationshipType(str, Enum):
+    INFLUENCED = "INFLUENCED"
+    REJECTED_IN_FAVOR_OF = "REJECTED_IN_FAVOR_OF"
+    FIXES = "FIXES"
+    APPLIES_TO = "APPLIES_TO"
+    TOUCHES = "TOUCHES"
+    PRODUCED = "PRODUCED"
+
+
+from typing import TypedDict, Any, Tuple, Annotated
+import operator
+
+class ExtractionState(TypedDict):
+    session_id: str
+    project_id: str
+    project_root: str
+    artifacts: List[ArtifactObject]
+    classified_artifacts: Annotated[List[Dict[str, Any]], operator.add]
+    raw_memories: Annotated[List[Dict[str, Any]], operator.add]
+    resolved_memories: Annotated[List[MemoryObject], operator.add]
+    relationships: Annotated[List[Tuple[uuid.UUID, RelationshipType, uuid.UUID]], operator.add]
+    validation_errors: Annotated[List[str], operator.add]
+    retry_count: int
+    final_memories: Annotated[List[MemoryObject], operator.add]
+    storage_results: Dict[str, Any]
+
+

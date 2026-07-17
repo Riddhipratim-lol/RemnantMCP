@@ -206,17 +206,17 @@ For each of the five system layers, we specify the responsibilities, concrete ta
 ---
 
 ### Layer 2 Implementation Todo Checklist
-- [ ] **Define Structures**: Implement `ExtractionState` (TypedDict) and `MemoryObject` (dataclass) in `remnant/structures.py`.
-- [ ] **LangGraph Topology Setup**: In `remnant/agent/graph.py`, build the `StateGraph` skeleton.
-- [ ] **Artifact Router Node**: Code routing logic evaluating `ArtifactObject.source_type`.
-- [ ] **Prompt Engineering (Gemini Flash Lite)**:
-  - [ ] Write system instruction templates for Git Diff extraction (`code_extract`).
-  - [ ] Write system instruction templates for Chat Transcript extraction (`chat_extractor`).
-  - [ ] Write system instruction templates for Error/Log extraction (`error_extractor`).
-- [ ] **Fuzzy Entity Resolver**: Implement matching logic (using regex/Levenshtein) to verify paths against `git ls-files` output.
-- [ ] **Relationship Inference Engine**: Implement rule-based/LLM-aided extraction of links between decisions and failed approaches.
-- [ ] **Validation Loop**: Program conditional loop evaluating schema fields; implement LLM self-correction prompt interface.
-- [ ] **StateGraph Compilation**: Finalize compile path for validation tests.
+- [x] **Define Structures**: Implement `ExtractionState` (TypedDict) and `MemoryObject` (dataclass) in `remnant/structures.py`.
+- [x] **LangGraph Topology Setup**: In `remnant/agent/graph.py`, build the `StateGraph` skeleton.
+- [x] **Artifact Router Node**: Code routing logic evaluating `ArtifactObject.source_type`.
+- [x] **Prompt Engineering (Gemini Flash Lite)**:
+  - [x] Write system instruction templates for Git Diff extraction (`code_extract`).
+  - [x] Write system instruction templates for Chat Transcript extraction (`chat_extractor`).
+  - [x] Write system instruction templates for Error/Log extraction (`error_extractor`).
+- [x] **Fuzzy Entity Resolver**: Implement matching logic (using regex/Levenshtein) to verify paths against `git ls-files` output.
+- [x] **Relationship Inference Engine**: Implement rule-based/LLM-aided extraction of links between decisions and failed approaches.
+- [x] **Validation Loop**: Program conditional loop evaluating schema fields; implement LLM self-correction prompt interface.
+- [x] **StateGraph Compilation**: Finalize compile path for validation tests.
 
 ---
 
