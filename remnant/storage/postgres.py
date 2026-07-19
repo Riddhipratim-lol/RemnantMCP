@@ -167,3 +167,81 @@ class PostgresStorage:
         except ValueError:
             # Deterministic namespace UUID from a string (e.g. repo URL)
             return str(uuid.uuid5(uuid.NAMESPACE_DNS, val))
+
+    def insert_memory_batch(self, memories: List['MemoryObject'], relationships: List[Tuple[uuid.UUID, 'RelationshipType', uuid.UUID]]) -> None:
+        """
+        Inserts a batch of memories and their relationships within a single transaction.
+        """
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor() as cur:
+                    for mem in memories:
+                        cur.execute(
+                            """
+                            INSERT INTO memories (
+                                id, project_id, session_id, memory_type, title, content, 
+                                rationale, components, file_paths, tags, confidence_score, 
+                                created_at, updated_at, is_superseded, superseded_by
+                            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                            ON CONFLICT (id) DO UPDATE SET
+                                title = EXCLUDED.title,
+                                content = EXCLUDED.content,
+                                rationale = EXCLUDED.rationale,
+                                components = EXCLUDED.components,
+                                file_paths = EXCLUDED.file_paths,
+                                tags = EXCLUDED.tags,
+                                confidence_score = EXCLUDED.confidence_score,
+                                updated_at = EXCLUDED.updated_at
+                            """,
+                            (
+                                str(mem.id), str(mem.project_id), str(mem.session_id), 
+                                mem.memory_type.value if hasattr(mem.memory_type, 'value') else mem.memory_type,
+                                mem.title, mem.content, mem.rationale, 
+                                mem.components, mem.file_paths, mem.tags, mem.confidence_score,
+                                mem.created_at, mem.updated_at, mem.is_superseded, 
+                                str(mem.superseded_by) if mem.superseded_by else None
+                            )
+                        )
+                    
+                    for rel in relationships:
+                        source_id, rel_type, target_id = rel
+                        # Create a deterministic UUID for the relationship based on source, target, type
+                        rel_id = str(uuid.uuid5(uuid.NAMESPACE_OID, f"{source_id}_{rel_type}_{target_id}"))
+                        cur.execute(
+                            """
+                            INSERT INTO memory_relationships (id, source_memory_id, target_memory_id, relationship_type)
+                            VALUES (%s, %s, %s, %s)
+                            ON CONFLICT ON CONSTRAINT unique_relationship DO NOTHING
+                            """,
+                            (
+                                rel_id, str(source_id), str(target_id), 
+                                rel_type.value if hasattr(rel_type, 'value') else rel_type
+                            )
+                        )
+                conn.commit()
+        except Exception as e:
+            print(f"PostgreSQL storage error in insert_memory_batch: {e}")
+            raise e  # Re-raise to trigger rollback logic in fan-out writer
+
+    def mark_superseded(self, memory_id: str, superseded_by: Optional[str] = None) -> bool:
+        """
+        Marks a memory as superseded, optionally pointing to the new memory ID.
+        """
+        mem_uuid = self._normalize_uuid(memory_id)
+        sup_uuid = self._normalize_uuid(superseded_by) if superseded_by else None
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        UPDATE memories 
+                        SET is_superseded = TRUE, superseded_by = %s, updated_at = %s
+                        WHERE id = %s
+                        """,
+                        (sup_uuid, datetime.now(timezone.utc), mem_uuid)
+                    )
+                    conn.commit()
+                    return cur.rowcount > 0
+        except Exception as e:
+            print(f"PostgreSQL storage error in mark_superseded: {e}")
+            return False

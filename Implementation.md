@@ -280,21 +280,21 @@ For each of the five system layers, we specify the responsibilities, concrete ta
 ---
 
 ### Layer 3 Implementation Todo Checklist
-- [ ] **PostgreSQL Database Schema Setup**:
-  - [ ] Write schema migration script creating `projects`, `sessions`, `memories`, `memory_relationships`, and `session_log` tables.
-  - [ ] Implement foreign keys, unique constraint on content hash, indexes on `project_id`, `memory_type`.
-- [ ] **PostgreSQL Repository Implementation**: Build CRUD database query handlers.
-- [ ] **Voyage Code 3 Client Setup**: Integrate Voyage AI SDK and configure embeddings helper function.
-- [ ] **Qdrant Collection Orchestrator**:
-  - [ ] Write setup script to create Qdrant collection (1024-dimension matching Voyage Code 3).
-  - [ ] Implement payload filter checks for `project_id` and `component`.
-- [ ] **Neo4j Aura Driver Setup**:
-  - [ ] Initialize Python Neo4j Driver wrapper.
-  - [ ] Write parameterized Cypher queries to upsert `Memory`, `Component`, `File` nodes, and build directional relationships.
-- [ ] **Fan-Out Writer Node**: Write transaction wrapper that executes Postgres insert, Qdrant upsert, and Neo4j graph insert.
-- [ ] **Resilience Logic**:
-  - [ ] Wrap Postgres insertion in transaction rollback blocks.
-  - [ ] Implement fallback catch to record a `DRAFT` or retry queue event if Qdrant or Neo4j is offline.
+- [x] **PostgreSQL Database Schema Setup**:
+  - [x] Write schema migration script creating `projects`, `sessions`, `memories`, `memory_relationships`, and `session_log` tables.
+  - [x] Implement foreign keys, unique constraint on content hash, indexes on `project_id`, `memory_type`.
+- [x] **PostgreSQL Repository Implementation**: Build CRUD database query handlers.
+- [x] **Voyage Code 3 Client Setup**: Integrate Voyage AI SDK and configure embeddings helper function.
+- [x] **Qdrant Collection Orchestrator**:
+  - [x] Write setup script to create Qdrant collection (1024-dimension matching Voyage Code 3).
+  - [x] Implement payload filter checks for `project_id` and `component`.
+- [x] **Neo4j Aura Driver Setup**:
+  - [x] Initialize Python Neo4j Driver wrapper.
+  - [x] Write parameterized Cypher queries to upsert `Memory`, `Component`, `File` nodes, and build directional relationships.
+- [x] **Fan-Out Writer Node**: Write transaction wrapper that executes Postgres insert, Qdrant upsert, and Neo4j graph insert.
+- [x] **Resilience Logic**:
+  - [x] Wrap Postgres insertion in transaction rollback blocks.
+  - [x] Implement fallback catch to record a `DRAFT` or retry queue event if Qdrant or Neo4j is offline.
 
 ---
 
