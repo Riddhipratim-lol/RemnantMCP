@@ -135,3 +135,28 @@ def test_check_validation():
 def test_build_graph():
     graph = build_graph()
     assert graph is not None
+
+
+def test_extractors_edge_cases():
+    from remnant.agent.extractors import code_extract, chat_extractor, error_extractor
+
+    # Case 1: Empty state
+    res1 = code_extract({})
+    assert res1 == {"raw_memories": []}
+
+    # Case 2: Artifact with no content
+    art_empty = ArtifactObject(
+        source_type=SourceType.GIT_DIFF,
+        project_id="test",
+        session_id="test",
+        timestamp=datetime.now(timezone.utc),
+        raw_content=""
+    )
+    res2 = chat_extractor({"artifact": art_empty})
+    assert res2 == {"raw_memories": []}
+
+    # Case 3: Dict artifact
+    dict_art = {"raw_content": "", "id": "123"}
+    res3 = error_extractor({"artifact": dict_art})
+    assert res3 == {"raw_memories": []}
+

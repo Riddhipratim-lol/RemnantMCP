@@ -2,7 +2,7 @@ import os
 from typing import Any, Dict, List
 from pydantic import BaseModel, Field
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain.chat_models import init_chat_model
 from remnant.structures import ArtifactObject
 
 
@@ -23,67 +23,72 @@ class ExtractionResult(BaseModel):
 
 
 def _get_llm():
-    return ChatGoogleGenerativeAI(
-        model="gemini-3.1-flash-lite",
+    return init_chat_model(
+        "google_genai:gemini-3.1-flash-lite",
         temperature=0.1
     ).with_structured_output(ExtractionResult)
 
 
-def code_extract(state: dict) -> dict:
-    """Extracts memories from git diffs, commits, and file changes."""
-    artifact: ArtifactObject = state["artifact"]
+def _process_extraction(state: dict, system_prompt: str, user_prompt: str) -> dict:
+    artifact = state.get("artifact")
+    if not artifact:
+        return {"raw_memories": []}
+    
+    # Handle both ArtifactObject instance and dict
+    raw_content = getattr(artifact, "raw_content", None)
+    if raw_content is None and isinstance(artifact, dict):
+        raw_content = artifact.get("raw_content", "")
+    
+    if not raw_content:
+        return {"raw_memories": []}
+        
     llm = _get_llm()
     prompt = ChatPromptTemplate.from_messages([
-        ("system", "You are an expert software architect analyzing code changes. Extract architectural decisions, implementation rationales, and bug resolutions. Output ONLY valid structured data."),
-        ("user", "Analyze this code change and extract structured memories.\n\nContent:\n{content}")
+        ("system", system_prompt),
+        ("user", user_prompt)
     ])
     chain = prompt | llm
-    result = chain.invoke({"content": artifact.raw_content})
     
-    raw_mems = [m.model_dump() for m in result.memories]
+    try:
+        result = chain.invoke({"content": raw_content})
+        raw_mems = [m.model_dump() for m in result.memories] if result and hasattr(result, 'memories') else []
+    except Exception as e:
+        print(f"Extraction error: {e}")
+        raw_mems = []
+    
+    # Safely extract artifact_id
+    artifact_id = getattr(artifact, "id", None)
+    if not artifact_id and isinstance(artifact, dict):
+        artifact_id = artifact.get("id")
+        
     for rm in raw_mems:
-        if hasattr(artifact, "id"):
-            rm["source_artifact_ids"] = [artifact.id]
-        else:
-            rm["source_artifact_ids"] = []
+        rm["source_artifact_ids"] = [artifact_id] if artifact_id else []
+        
     return {"raw_memories": raw_mems}
+
+
+def code_extract(state: dict) -> dict:
+    """Extracts memories from git diffs, commits, and file changes."""
+    return _process_extraction(
+        state,
+        "You are an expert software architect analyzing code changes. Extract architectural decisions, implementation rationales, and bug resolutions. Output ONLY valid structured data.",
+        "Analyze this code change and extract structured memories.\n\nContent:\n{content}"
+    )
 
 
 def chat_extractor(state: dict) -> dict:
     """Extracts memories from chat transcripts."""
-    artifact: ArtifactObject = state["artifact"]
-    llm = _get_llm()
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", "You are an expert engineering manager analyzing chat transcripts. Extract architectural decisions, constraints, failed approaches, and design tradeoffs. Output ONLY valid structured data."),
-        ("user", "Analyze this transcript and extract structured memories.\n\nContent:\n{content}")
-    ])
-    chain = prompt | llm
-    result = chain.invoke({"content": artifact.raw_content})
-    
-    raw_mems = [m.model_dump() for m in result.memories]
-    for rm in raw_mems:
-        if hasattr(artifact, "id"):
-            rm["source_artifact_ids"] = [artifact.id]
-        else:
-            rm["source_artifact_ids"] = []
-    return {"raw_memories": raw_mems}
+    return _process_extraction(
+        state,
+        "You are an expert engineering manager analyzing chat transcripts. Extract architectural decisions, constraints, failed approaches, and design tradeoffs. Output ONLY valid structured data.",
+        "Analyze this transcript and extract structured memories.\n\nContent:\n{content}"
+    )
 
 
 def error_extractor(state: dict) -> dict:
     """Extracts memories from error logs."""
-    artifact: ArtifactObject = state["artifact"]
-    llm = _get_llm()
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", "You are an expert debugging assistant analyzing error logs. Extract bug resolutions, constraints, and failed approaches. Output ONLY valid structured data."),
-        ("user", "Analyze these logs and extract structured memories.\n\nContent:\n{content}")
-    ])
-    chain = prompt | llm
-    result = chain.invoke({"content": artifact.raw_content})
-    
-    raw_mems = [m.model_dump() for m in result.memories]
-    for rm in raw_mems:
-        if hasattr(artifact, "id"):
-            rm["source_artifact_ids"] = [artifact.id]
-        else:
-            rm["source_artifact_ids"] = []
-    return {"raw_memories": raw_mems}
+    return _process_extraction(
+        state,
+        "You are an expert debugging assistant analyzing error logs. Extract bug resolutions, constraints, and failed approaches. Output ONLY valid structured data.",
+        "Analyze these logs and extract structured memories.\n\nContent:\n{content}"
+    )
