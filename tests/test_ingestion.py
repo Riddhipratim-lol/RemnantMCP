@@ -81,6 +81,15 @@ class MockPostgresStorage:
     def get_last_processed_sha(self, project_id: str) -> Optional[str]:
         return self.last_shas.get(project_id)
 
+    def _normalize_uuid(self, val: str) -> str:
+        if not val:
+            return str(uuid.uuid4())
+        try:
+            uuid.UUID(val)
+            return val
+        except (ValueError, TypeError, AttributeError):
+            return str(uuid.uuid5(uuid.NAMESPACE_DNS, val))
+
 
 def test_calculate_sha256():
     assert calculate_sha256("hello") == calculate_sha256("hello")

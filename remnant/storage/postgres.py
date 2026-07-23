@@ -28,7 +28,7 @@ class PostgresStorage:
                     cur.execute("SELECT id FROM projects WHERE id = %s", (val_id,))
                     row = cur.fetchone()
                     if row:
-                        return row[0]
+                        return str(row[0])
                     
                     cur.execute(
                         "INSERT INTO projects (id, name, repo_path) VALUES (%s, %s, %s) RETURNING id",
@@ -61,7 +61,7 @@ class PostgresStorage:
                     )
                     row = cur.fetchone()
                     if row:
-                        return row[0]
+                        return str(row[0])
         except Exception as e:
             print(f"PostgreSQL storage error in get_active_session: {e}")
         return None

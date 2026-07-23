@@ -1,8 +1,9 @@
+import operator
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Annotated, Any, Dict, List, Optional, Tuple, TypedDict
 
 
 class SourceType(str, Enum):
@@ -20,6 +21,7 @@ class ArtifactObject:
     session_id: str          # Groups artifacts from the same work session
     timestamp: datetime
     raw_content: str         # Verbatim source content
+    id: uuid.UUID = field(default_factory=uuid.uuid4)      # Unique artifact identifier for provenance
     file_paths: List[str] = field(default_factory=list)    # Affected file paths, if applicable
     metadata: Dict = field(default_factory=dict)           # Source-specific additional fields
     content_hash: Optional[str] = None                     # SHA-256 of raw_content
@@ -67,9 +69,6 @@ class RelationshipType(str, Enum):
     PRODUCED = "PRODUCED"
 
 
-from typing import TypedDict, Any, Tuple, Annotated
-import operator
-
 class ExtractionState(TypedDict):
     session_id: str
     project_id: str
@@ -79,7 +78,7 @@ class ExtractionState(TypedDict):
     raw_memories: Annotated[List[Dict[str, Any]], operator.add]
     resolved_memories: Annotated[List[MemoryObject], operator.add]
     relationships: Annotated[List[Tuple[uuid.UUID, RelationshipType, uuid.UUID]], operator.add]
-    validation_errors: Annotated[List[str], operator.add]
+    validation_errors: List[str]          # Overwrite semantics: replaced each validator run
     retry_count: int
     final_memories: Annotated[List[MemoryObject], operator.add]
     storage_results: Dict[str, Any]

@@ -160,3 +160,49 @@ def test_extractors_edge_cases():
     res3 = error_extractor({"artifact": dict_art})
     assert res3 == {"raw_memories": []}
 
+
+def test_artifact_object_has_id():
+    art = ArtifactObject(
+        source_type=SourceType.GIT_DIFF,
+        project_id="test",
+        session_id="test",
+        timestamp=datetime.now(timezone.utc),
+        raw_content="diff content"
+    )
+    assert hasattr(art, "id")
+    assert isinstance(art.id, uuid.UUID)
+
+
+from unittest.mock import patch, MagicMock
+
+@patch('remnant.agent.graph.FanOutWriter')
+def test_memory_writer_node_execution(mock_writer_cls):
+    from remnant.agent.graph import memory_writer_node
+    
+    mock_writer_inst = mock_writer_cls.return_value
+    mock_writer_inst.write_memories.return_value = {
+        "postgres": True,
+        "qdrant": True,
+        "neo4j": True,
+        "errors": []
+    }
+    
+    mem = MemoryObject(
+        id=uuid.uuid4(),
+        project_id=uuid.uuid4(),
+        session_id=uuid.uuid4(),
+        memory_type=MemoryType.ARCHITECTURAL_DECISION,
+        title="Test Memory",
+        content="Test content length long enough."
+    )
+    
+    state = ExtractionState(
+        final_memories=[mem],
+        relationships=[]
+    )
+    
+    res = memory_writer_node(state)
+    assert res["storage_results"]["status"] == "success"
+    assert res["storage_results"]["memories_written"] == 1
+    mock_writer_inst.write_memories.assert_called_once_with([mem], [])
+

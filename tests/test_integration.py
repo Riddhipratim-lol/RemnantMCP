@@ -32,9 +32,18 @@ def test_layer1_to_layer2_connection(mock_get_llm):
     # But it's easier to patch the specific extractor function's internal chain, or just patch _get_llm.
     pass # we'll patch invoke later below
 
+@patch('remnant.agent.graph.FanOutWriter')
 @patch('remnant.agent.extractors.ChatPromptTemplate')
 @patch('remnant.agent.extractors._get_llm')
-def test_end_to_end_data_flow(mock_get_llm, mock_prompt):
+def test_end_to_end_data_flow(mock_get_llm, mock_prompt, mock_writer_cls):
+    # Setup mock FanOutWriter behavior
+    mock_writer_instance = mock_writer_cls.return_value
+    mock_writer_instance.write_memories.return_value = {
+        "postgres": True,
+        "qdrant": True,
+        "neo4j": True,
+        "errors": []
+    }
     # Setup the mock LLM chain behavior
     mock_chain = MagicMock()
     mock_result = ExtractionResult(memories=[

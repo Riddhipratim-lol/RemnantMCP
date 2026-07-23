@@ -1,5 +1,4 @@
 import hashlib
-import os
 from datetime import datetime, timezone
 import uuid
 from typing import Dict, List, Tuple, Optional
@@ -41,12 +40,11 @@ class SessionGrouper:
             session_id (str): The active or newly created session UUID string.
             final_artifacts (List[ArtifactObject]): Deduplicated and session-grouped artifacts.
         """
-        # Ensure project exists
-        project_uuid = self.db_storage.get_or_create_project(
-            project_id=project_id,
-            name=project_id.split("/")[-1] if "/" in project_id else project_id,
-            repo_path=os.getcwd() # default repo path fallback
-        )
+        # Normalize to a valid UUID string.
+        # The coordinator (or caller) is responsible for ensuring the project already exists
+        # in the DB. We avoid a redundant get_or_create_project call here to prevent
+        # repo_path overwrite with os.getcwd() fallback.
+        project_uuid = self.db_storage._normalize_uuid(project_id)
         
         # 1. Resolve or create active session
         session_id = self.db_storage.get_active_session(project_uuid, self.window_hours)
