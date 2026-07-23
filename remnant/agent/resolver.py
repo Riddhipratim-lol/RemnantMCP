@@ -28,12 +28,12 @@ def resolve_entities(state: ExtractionState) -> Dict[str, Any]:
     # Try to parse UUIDs or generate temporary ones if they are not standard UUID strings
     try:
         project_id = uuid.UUID(project_id_str)
-    except ValueError:
+    except (ValueError, AttributeError):
         project_id = uuid.uuid4()
         
     try:
         session_id = uuid.UUID(session_id_str)
-    except ValueError:
+    except (ValueError, AttributeError):
         session_id = uuid.uuid4()
 
     project_root = state.get("project_root") or "."
