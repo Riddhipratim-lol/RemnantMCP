@@ -68,6 +68,7 @@ def test_resolve_entities():
     assert isinstance(mem.session_id, uuid.UUID)
 
 def test_relationship_mapper():
+    """FAILED_APPROACH + ARCHITECTURAL_DECISION sharing a component → REJECTED_IN_FAVOR_OF"""
     mem1 = MemoryObject(
         id=uuid.uuid4(),
         project_id=uuid.uuid4(),
@@ -97,6 +98,189 @@ def test_relationship_mapper():
     assert rel[1] == RelationshipType.REJECTED_IN_FAVOR_OF
     assert rel[0] == mem1.id
     assert rel[2] == mem2.id
+
+
+def test_relationship_mapper_fixes():
+    """BUG_RESOLUTION + CONSTRAINT sharing context → FIXES"""
+    mem_bug = MemoryObject(
+        id=uuid.uuid4(),
+        project_id=uuid.uuid4(),
+        session_id=uuid.uuid4(),
+        memory_type=MemoryType.BUG_RESOLUTION,
+        title="Fixed race condition",
+        content="Added distributed lock",
+        file_paths=["auth/cache.py"]
+    )
+    mem_constraint = MemoryObject(
+        id=uuid.uuid4(),
+        project_id=uuid.uuid4(),
+        session_id=uuid.uuid4(),
+        memory_type=MemoryType.CONSTRAINT,
+        title="Must prevent concurrent writes",
+        content="Constraint on auth cache",
+        file_paths=["auth/cache.py"]
+    )
+
+    state = ExtractionState(resolved_memories=[mem_bug, mem_constraint])
+    result = relationship_mapper(state)
+
+    relationships = result["relationships"]
+    assert len(relationships) == 1
+    rel = relationships[0]
+    assert rel[1] == RelationshipType.FIXES
+    assert rel[0] == mem_bug.id
+    assert rel[2] == mem_constraint.id
+
+
+def test_relationship_mapper_applies_to_not_emitted():
+    """
+    ARCHITECTURAL_DECISION + COMPONENT_RELATIONSHIP sharing a component:
+    mapper.py no longer emits a Memory→Memory APPLIES_TO edge.
+
+    APPLIES_TO is handled exclusively by neo4j.py as a Memory→Component
+    infrastructure edge: (Memory)-[:APPLIES_TO]->(Component node).
+
+    However, this pair DOES match the INFLUENCED fallback rule:
+    (COMPONENT_RELATIONSHIP, ARCHITECTURAL_DECISION) in _influence_pairs.
+    So mapper.py correctly emits INFLUENCED instead — a valid causal edge.
+    """
+    mem_decision = MemoryObject(
+        id=uuid.uuid4(),
+        project_id=uuid.uuid4(),
+        session_id=uuid.uuid4(),
+        memory_type=MemoryType.ARCHITECTURAL_DECISION,
+        title="Use JWT for auth",
+        content="Chose JWT over sessions",
+        components=["AuthService"]
+    )
+    mem_comp = MemoryObject(
+        id=uuid.uuid4(),
+        project_id=uuid.uuid4(),
+        session_id=uuid.uuid4(),
+        memory_type=MemoryType.COMPONENT_RELATIONSHIP,
+        title="AuthService depends on UserRepo",
+        content="Dependency boundary",
+        components=["AuthService"]
+    )
+
+    state = ExtractionState(resolved_memories=[mem_decision, mem_comp])
+    result = relationship_mapper(state)
+
+    # APPLIES_TO (Memory→Memory) is gone — but INFLUENCED fires via the fallback rule.
+    # neo4j.py still writes (Memory)-[:APPLIES_TO]->(Component node) separately.
+    relationships = result["relationships"]
+    assert len(relationships) == 1
+    assert relationships[0][1] == RelationshipType.INFLUENCED
+    # Direction: COMPONENT_RELATIONSHIP → INFLUENCED → ARCHITECTURAL_DECISION
+    assert relationships[0][0] == mem_comp.id
+    assert relationships[0][2] == mem_decision.id
+
+
+def test_relationship_mapper_touches_not_emitted():
+    """
+    IMPLEMENTATION_RATIONALE + BUG_RESOLUTION sharing only a file path:
+    mapper.py no longer emits a Memory→Memory TOUCHES edge.
+
+    TOUCHES is handled exclusively by neo4j.py as a Memory→File
+    infrastructure edge: (Memory)-[:TOUCHES]->(File node).
+
+    However, this pair DOES match the INFLUENCED fallback rule:
+    (BUG_RESOLUTION, IMPLEMENTATION_RATIONALE) in _influence_pairs.
+    So mapper.py correctly emits INFLUENCED instead — a valid causal edge.
+    """
+    mem_impl = MemoryObject(
+        id=uuid.uuid4(),
+        project_id=uuid.uuid4(),
+        session_id=uuid.uuid4(),
+        memory_type=MemoryType.IMPLEMENTATION_RATIONALE,
+        title="Retry decorator usage",
+        content="Used retry for backoff",
+        file_paths=["utils/retry.py"]
+    )
+    mem_bug = MemoryObject(
+        id=uuid.uuid4(),
+        project_id=uuid.uuid4(),
+        session_id=uuid.uuid4(),
+        memory_type=MemoryType.BUG_RESOLUTION,
+        title="Fixed retry off-by-one",
+        content="Fixed loop bound",
+        file_paths=["utils/retry.py"]
+    )
+
+    state = ExtractionState(resolved_memories=[mem_impl, mem_bug])
+    result = relationship_mapper(state)
+
+    # TOUCHES (Memory→Memory) is gone — but INFLUENCED fires via the fallback rule.
+    # neo4j.py still writes (Memory)-[:TOUCHES]->(File node) separately.
+    relationships = result["relationships"]
+    assert len(relationships) == 1
+    assert relationships[0][1] == RelationshipType.INFLUENCED
+    # Direction: BUG_RESOLUTION → INFLUENCED → IMPLEMENTATION_RATIONALE
+    assert relationships[0][0] == mem_bug.id
+    assert relationships[0][2] == mem_impl.id
+
+
+def test_relationship_mapper_influenced():
+    """CONSTRAINT + ARCHITECTURAL_DECISION sharing context → INFLUENCED"""
+    mem_constraint = MemoryObject(
+        id=uuid.uuid4(),
+        project_id=uuid.uuid4(),
+        session_id=uuid.uuid4(),
+        memory_type=MemoryType.CONSTRAINT,
+        title="Must stay under 100ms P99",
+        content="Latency constraint",
+        components=["API"]
+    )
+    mem_decision = MemoryObject(
+        id=uuid.uuid4(),
+        project_id=uuid.uuid4(),
+        session_id=uuid.uuid4(),
+        memory_type=MemoryType.ARCHITECTURAL_DECISION,
+        title="Use in-process cache",
+        content="Avoid external calls in hot path",
+        components=["API"]
+    )
+
+    state = ExtractionState(resolved_memories=[mem_constraint, mem_decision])
+    result = relationship_mapper(state)
+
+    relationships = result["relationships"]
+    assert len(relationships) == 1
+    rel = relationships[0]
+    assert rel[1] == RelationshipType.INFLUENCED
+    # Direction: CONSTRAINT → INFLUENCED → ARCHITECTURAL_DECISION
+    assert rel[0] == mem_constraint.id
+    assert rel[2] == mem_decision.id
+
+
+def test_relationship_mapper_no_shared_context():
+    """Memories with no shared files or components → no relationship"""
+    mem_a = MemoryObject(
+        id=uuid.uuid4(),
+        project_id=uuid.uuid4(),
+        session_id=uuid.uuid4(),
+        memory_type=MemoryType.ARCHITECTURAL_DECISION,
+        title="Auth decision",
+        content="Use JWT",
+        components=["Auth"],
+        file_paths=["auth/handler.py"]
+    )
+    mem_b = MemoryObject(
+        id=uuid.uuid4(),
+        project_id=uuid.uuid4(),
+        session_id=uuid.uuid4(),
+        memory_type=MemoryType.CONSTRAINT,
+        title="Billing constraint",
+        content="Must use Stripe",
+        components=["Billing"],
+        file_paths=["billing/stripe.py"]
+    )
+
+    state = ExtractionState(resolved_memories=[mem_a, mem_b])
+    result = relationship_mapper(state)
+
+    assert result["relationships"] == []
+
 
 def test_validator_node():
     mem_valid = MemoryObject(
