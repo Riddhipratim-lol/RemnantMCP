@@ -390,3 +390,43 @@ def test_memory_writer_node_execution(mock_writer_cls):
     assert res["storage_results"]["memories_written"] == 1
     mock_writer_inst.write_memories.assert_called_once_with([mem], [])
 
+
+def test_zero_memories_pipeline():
+    """Verify that zero raw memories propagate cleanly through the full agent pipeline without error."""
+    from remnant.agent.graph import memory_writer_node
+    
+    # 1. Start with zero raw memories
+    state = ExtractionState(
+        raw_memories=[],
+        project_id=str(uuid.uuid4()),
+        session_id=str(uuid.uuid4()),
+        project_root="."
+    )
+    
+    # 2. Entity Resolver with 0 raw memories
+    res_entities = resolve_entities(state)
+    assert res_entities["resolved_memories"] == []
+    state["resolved_memories"] = res_entities["resolved_memories"]
+    
+    # 3. Relationship Mapper with 0 resolved memories
+    res_rel = relationship_mapper(state)
+    assert res_rel["relationships"] == []
+    state["relationships"] = res_rel["relationships"]
+    
+    # 4. Validator with 0 resolved memories
+    res_val = validator_node(state)
+    assert res_val["validation_errors"] == []
+    assert res_val["final_memories"] == []
+    state["validation_errors"] = res_val["validation_errors"]
+    state["final_memories"] = res_val["final_memories"]
+    
+    # 5. Check validation routing
+    next_node = check_validation(state)
+    assert next_node == "memory_writer"
+    
+    # 6. Memory Writer with 0 final memories
+    res_writer = memory_writer_node(state)
+    assert res_writer["storage_results"]["status"] == "skipped"
+    assert res_writer["storage_results"]["memories_written"] == 0
+
+

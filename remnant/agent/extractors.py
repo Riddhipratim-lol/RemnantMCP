@@ -95,6 +95,8 @@ You extract engineering knowledge into exactly these seven memory types — extr
    Signals: "must", "cannot", "required to", compatibility requirements, SLA/performance targets, compliance rules, version pins.
 
 Rules:
+- Quality over quantity: It is completely acceptable and expected for an artifact to contain ONLY 1 memory, or even ZERO memories (if the change/chat is trivial, e.g., fixing typos, whitespace, or minor refactoring).
+- Extract multiple memories ONLY if distinct engineering insights exist. Do not duplicate the same insight under multiple types.
 - A single artifact may yield multiple memories of DIFFERENT types — extract ALL that are present.
 - Do NOT collapse two distinct insights into one memory; keep them separate.
 - Every memory must have a clear, human-readable title and enough content to stand alone out of context.

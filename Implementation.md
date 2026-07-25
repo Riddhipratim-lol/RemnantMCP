@@ -382,16 +382,16 @@ For each of the five system layers, we specify the responsibilities, concrete ta
 ---
 
 ### Layer 4 Implementation Todo Checklist
-- [ ] **Qdrant Semantic Querying**: Implement search function with Voyage embedding input and metadata payload filters.
-- [ ] **Neo4j Graph Expansion Query**:
-  - [ ] Write Cypher script to traverse paths: `(Memory)-[:INFLUENCED|REJECTED_IN_FAVOR_OF|FIXES]-(RelatedMemory)`.
-  - [ ] De-duplicate expansion results against initial semantic candidates.
-- [ ] **Voyage Reranker integration**:
-  - [ ] Write connector for Voyage `rerank-2.5-lite` endpoint.
-  - [ ] Implement composite scoring function: $Score = (Reranker \times 0.7) + (Confidence \times 0.15) + (Recency \times 0.15)$ where recency represents exponential time decay from `created_at`.
-- [ ] **PostgreSQL Full-Text Search Fallback**: Implement database `tsvector` query fallback matching `title` and `content`.
-- [ ] **Token-Aware Context Packer**: Build utility using `tiktoken` to estimate context token bounds and format output text.
-- [ ] **Retrieval Coordinator Orchestrator**: Write wrapper to run retrieval phases in sequence.
+- [x] **Qdrant Semantic Querying**: Implement search function with Voyage embedding input and metadata payload filters.
+- [x] **Neo4j Graph Expansion Query**:
+  - [x] Write Cypher script to traverse paths: `(Memory)-[:INFLUENCED|REJECTED_IN_FAVOR_OF|FIXES]-(RelatedMemory)`.
+  - [x] De-duplicate expansion results against initial semantic candidates.
+- [x] **Voyage Reranker integration**:
+  - [x] Write connector for Voyage `rerank-2.5-lite` endpoint.
+  - [x] Implement composite scoring function: $Score = (Reranker \times 0.7) + (Confidence \times 0.15) + (Recency \times 0.15)$ where recency represents exponential time decay from `created_at`.
+- [x] **PostgreSQL Full-Text Search Fallback**: Implement database `tsvector` query fallback matching `title` and `content`.
+- [x] **Token-Aware Context Packer**: Build utility using `tiktoken` to estimate context token bounds and format output text.
+- [x] **Retrieval Coordinator Orchestrator**: Write wrapper to run retrieval phases in sequence.
 
 ---
 
