@@ -6,7 +6,7 @@ import uuid
 class Neo4jClientManager:
     def __init__(self, uri: str = None, user: str = None, password: str = None):
         self.uri = uri or os.getenv("REMNANT_NEO4J_URL", "bolt://localhost:7687")
-        self.user = user or os.getenv("REMNANT_NEO4J_USER", "neo4j")
+        self.user = user or os.getenv("REMNANT_NEO4J_USERNAME", "neo4j")
         self.password = password or os.getenv("REMNANT_NEO4J_PASSWORD", "password")
         self.driver = GraphDatabase.driver(self.uri, auth=(self.user, self.password))
         

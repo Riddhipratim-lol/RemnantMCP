@@ -41,7 +41,7 @@ class GraphExpansion:
         self.neo4j_uri = neo4j_uri or os.getenv(
             "REMNANT_NEO4J_URL", "bolt://localhost:7687"
         )
-        self.neo4j_user = neo4j_user or os.getenv("REMNANT_NEO4J_USER", "neo4j")
+        self.neo4j_user = neo4j_user or os.getenv("REMNANT_NEO4J_USERNAME", "neo4j")
         self.neo4j_password = neo4j_password or os.getenv(
             "REMNANT_NEO4J_PASSWORD", "password"
         )
