@@ -467,19 +467,19 @@ For each of the five system layers, we specify the responsibilities, concrete ta
 ---
 
 ### Layer 5 Implementation Todo Checklist
-- [ ] **Initialize FastMCP Framework**: Write server entrypoint `remnant/mcp_server.py`.
-- [ ] **Git Remote Resolution Hook**:
-  - [ ] Implement helper to execute `git remote get-url origin`.
-  - [ ] Normalize URLs (e.g. `git@github.com:org/repo.git` vs `https://github.com/org/repo`) into a unique key.
-- [ ] **Claude & Cursor Configurations**: Create `mcp_config.json` examples for integrating the server command with standard clients.
-- [ ] **Audit Logger Interceptor**: Build middleware to capture MCP requests and write details to the database.
-- [ ] **Implement remember_session Tool**:
-  - [ ] Parse parameters.
-  - [ ] Coordinate Layer 1 ingestion and run the LangGraph Extraction pipeline.
-- [ ] **Implement recall_context Tool**: Map query criteria to Layer 4 engine.
-- [ ] **Implement list_decisions Tool**: Build relational query parser to list architectural decisions.
-- [ ] **Implement get_failed_approaches Tool**: Build search queries filtering specifically for `FAILED_APPROACH` memories.
-- [ ] **Implement mark_superseded Tool**: Implement updating `is_superseded` and `superseded_by` columns inside the database.
+- [x] **Initialize FastMCP Framework**: Write server entrypoint `remnant/mcp_server.py`.
+- [x] **Git Remote Resolution Hook**:
+  - [x] Implement helper to execute `git remote get-url origin`.
+  - [x] Normalize URLs (e.g. `git@github.com:org/repo.git` vs `https://github.com/org/repo`) into a unique key.
+- [x] **Claude & Cursor Configurations**: Create `mcp_config.json` examples for integrating the server command with standard clients.
+- [x] **Audit Logger Interceptor**: Build middleware to capture MCP requests and write details to the database.
+- [x] **Implement remember_session Tool**:
+  - [x] Parse parameters.
+  - [x] Coordinate Layer 1 ingestion and run the LangGraph Extraction pipeline.
+- [x] **Implement recall_context Tool**: Map query criteria to Layer 4 engine.
+- [x] **Implement list_decisions Tool**: Build relational query parser to list architectural decisions.
+- [x] **Implement get_failed_approaches Tool**: Build search queries filtering specifically for `FAILED_APPROACH` memories.
+- [x] **Implement mark_superseded Tool**: Implement updating `is_superseded` and `superseded_by` columns inside the database.
 
 ---
 

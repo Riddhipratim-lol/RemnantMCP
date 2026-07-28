@@ -1,0 +1,81 @@
+{
+  "_comment": "RemnantMCP — MCP Client Configuration Examples",
+  "_description": "Copy the appropriate section into your AI coding assistant's MCP configuration file.",
+
+  "claude_desktop": {
+    "_file": "~/Library/Application Support/Claude/claude_desktop_config.json",
+    "mcpServers": {
+      "remnant": {
+        "command": "python",
+        "args": ["-m", "remnant.mcp_server"],
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "REMNANT_DB_URL": "postgresql://your_user:your_password@your_host:5432/remnant",
+          "REMNANT_QDRANT_URL": "https://your-cluster.qdrant.io",
+          "REMNANT_QDRANT_API_KEY": "your_qdrant_api_key",
+          "REMNANT_NEO4J_URL": "neo4j+s://your-db.databases.neo4j.io",
+          "REMNANT_NEO4J_USERNAME": "neo4j",
+          "REMNANT_NEO4J_PASSWORD": "your_neo4j_password",
+          "VOYAGE_API_KEY": "your_voyage_api_key",
+          "GEMINI_API_KEY": "your_gemini_api_key",
+          "REMNANT_PROJECT_ROOT": "${workspaceFolder}"
+        }
+      }
+    }
+  },
+
+  "cursor": {
+    "_file": ".cursor/mcp.json (project root) or ~/.cursor/mcp.json (global)",
+    "mcpServers": {
+      "remnant": {
+        "command": "python",
+        "args": ["-m", "remnant.mcp_server"],
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "REMNANT_DB_URL": "postgresql://your_user:your_password@your_host:5432/remnant",
+          "REMNANT_QDRANT_URL": "https://your-cluster.qdrant.io",
+          "REMNANT_QDRANT_API_KEY": "your_qdrant_api_key",
+          "REMNANT_NEO4J_URL": "neo4j+s://your-db.databases.neo4j.io",
+          "REMNANT_NEO4J_USERNAME": "neo4j",
+          "REMNANT_NEO4J_PASSWORD": "your_neo4j_password",
+          "VOYAGE_API_KEY": "your_voyage_api_key",
+          "GEMINI_API_KEY": "your_gemini_api_key",
+          "REMNANT_PROJECT_ROOT": "${workspaceFolder}"
+        }
+      }
+    }
+  },
+
+  "windsurf": {
+    "_file": "~/.codeium/windsurf/mcp_config.json",
+    "mcpServers": {
+      "remnant": {
+        "command": "python",
+        "args": ["-m", "remnant.mcp_server"],
+        "env": {
+          "REMNANT_DB_URL": "postgresql://your_user:your_password@your_host:5432/remnant",
+          "REMNANT_QDRANT_URL": "https://your-cluster.qdrant.io",
+          "REMNANT_QDRANT_API_KEY": "your_qdrant_api_key",
+          "REMNANT_NEO4J_URL": "neo4j+s://your-db.databases.neo4j.io",
+          "REMNANT_NEO4J_USERNAME": "neo4j",
+          "REMNANT_NEO4J_PASSWORD": "your_neo4j_password",
+          "VOYAGE_API_KEY": "your_voyage_api_key",
+          "GEMINI_API_KEY": "your_gemini_api_key",
+          "REMNANT_PROJECT_ROOT": "${workspaceFolder}"
+        }
+      }
+    }
+  },
+
+  "using_dotenv": {
+    "_description": "If you have a .env file at the project root with all vars set, you can use a minimal config.",
+    "_note": "Ensure the .venv is activated or use the full path to the python executable.",
+    "mcpServers": {
+      "remnant": {
+        "command": "/path/to/your/project/.venv/bin/python",
+        "args": ["-m", "remnant.mcp_server"],
+        "cwd": "/path/to/your/project"
+      }
+    }
+  }
+}
