@@ -14,7 +14,7 @@ where:
 """
 
 import math
-import os
+from remnant.config import settings
 from datetime import datetime, timezone
 from typing import List, Optional, Tuple
 
@@ -43,7 +43,7 @@ class VoyageReranker:
         model: str = "rerank-2.5-lite",
         recency_lambda: float = _DEFAULT_LAMBDA,
     ):
-        api_key = voyage_api_key or os.getenv("VOYAGE_API_KEY")
+        api_key = voyage_api_key or settings.voyage_api_key
         if not api_key:
             raise ValueError("VOYAGE_API_KEY environment variable is not set.")
         self.client = voyageai.Client(api_key=api_key)

@@ -1,13 +1,13 @@
-import os
+from remnant.config import settings
 from typing import List, Tuple
 from neo4j import GraphDatabase
 import uuid
 
 class Neo4jClientManager:
     def __init__(self, uri: str = None, user: str = None, password: str = None):
-        self.uri = uri or os.getenv("REMNANT_NEO4J_URL", "bolt://localhost:7687")
-        self.user = user or os.getenv("REMNANT_NEO4J_USERNAME", "neo4j")
-        self.password = password or os.getenv("REMNANT_NEO4J_PASSWORD", "password")
+        self.uri = uri or settings.remnant_neo4j_url
+        self.user = user or settings.remnant_neo4j_username
+        self.password = password or settings.remnant_neo4j_password
         self.driver = GraphDatabase.driver(self.uri, auth=(self.user, self.password))
         
     def close(self):

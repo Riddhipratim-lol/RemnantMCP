@@ -1,10 +1,10 @@
-import os
+from remnant.config import settings
 import voyageai
 from typing import List
 
 class VoyageClient:
     def __init__(self, api_key: str = None):
-        self.api_key = api_key or os.getenv("VOYAGE_API_KEY")
+        self.api_key = api_key or settings.voyage_api_key
         if not self.api_key:
             raise ValueError("VOYAGE_API_KEY environment variable is not set.")
         self.client = voyageai.Client(api_key=self.api_key)

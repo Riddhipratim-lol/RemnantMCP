@@ -11,6 +11,7 @@ all subsequent tool calls can use the stable project_id without re-running git.
 """
 
 import os
+from remnant.config import settings
 import re
 import subprocess
 import uuid
@@ -111,7 +112,7 @@ class ProjectDetector:
         Returns:
             Stable UUID string (str) identifying this project.
         """
-        root = project_root or os.environ.get("REMNANT_PROJECT_ROOT") or os.getcwd()
+        root = project_root or settings.remnant_project_root or os.getcwd()
 
         raw_url = get_git_remote_url(root)
         if raw_url:

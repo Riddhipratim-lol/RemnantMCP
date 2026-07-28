@@ -15,6 +15,7 @@ makes unit testing straightforward without spinning up a live MCP server.
 """
 
 import os
+from remnant.config import settings
 import time
 from typing import Any, Dict, List, Optional
 
@@ -62,13 +63,13 @@ def _get_retrieval_coordinator() -> RetrievalCoordinator:
     global _retrieval_coordinator
     if _retrieval_coordinator is None:
         _retrieval_coordinator = RetrievalCoordinator(
-            qdrant_url=os.environ.get("REMNANT_QDRANT_URL"),
-            qdrant_api_key=os.environ.get("REMNANT_QDRANT_API_KEY"),
-            neo4j_uri=os.environ.get("REMNANT_NEO4J_URL"),
-            neo4j_user=os.environ.get("REMNANT_NEO4J_USERNAME", "neo4j"),
-            neo4j_password=os.environ.get("REMNANT_NEO4J_PASSWORD"),
-            voyage_api_key=os.environ.get("VOYAGE_API_KEY"),
-            db_url=os.environ.get("REMNANT_DB_URL"),
+            qdrant_url=settings.remnant_qdrant_url,
+            qdrant_api_key=settings.remnant_qdrant_api_key,
+            neo4j_uri=settings.remnant_neo4j_url,
+            neo4j_user=settings.remnant_neo4j_username,
+            neo4j_password=settings.remnant_neo4j_password,
+            voyage_api_key=settings.voyage_api_key,
+            db_url=settings.remnant_db_url,
         )
     return _retrieval_coordinator
 
@@ -113,7 +114,7 @@ def remember_session(
         }
     """
     t0 = time.monotonic()
-    root = project_root or os.environ.get("REMNANT_PROJECT_ROOT") or os.getcwd()
+    root = project_root or settings.remnant_project_root or os.getcwd()
     input_params = {
         "project_id": project_id,
         "commit_sha": commit_sha,
@@ -255,7 +256,7 @@ def recall_context(
         }
     """
     t0 = time.monotonic()
-    root = project_root or os.environ.get("REMNANT_PROJECT_ROOT") or os.getcwd()
+    root = project_root or settings.remnant_project_root or os.getcwd()
     input_params = {
         "query": query,
         "project_id": project_id,
@@ -346,7 +347,7 @@ def list_decisions(
         }
     """
     t0 = time.monotonic()
-    root = project_root or os.environ.get("REMNANT_PROJECT_ROOT") or os.getcwd()
+    root = project_root or settings.remnant_project_root or os.getcwd()
     input_params = {"project_id": project_id, "component": component}
 
     resolved_project_id = project_id or _get_project_detector().resolve(root)
@@ -412,7 +413,7 @@ def get_failed_approaches(
         }
     """
     t0 = time.monotonic()
-    root = project_root or os.environ.get("REMNANT_PROJECT_ROOT") or os.getcwd()
+    root = project_root or settings.remnant_project_root or os.getcwd()
     input_params = {"query": query, "project_id": project_id}
 
     resolved_project_id = project_id or _get_project_detector().resolve(root)

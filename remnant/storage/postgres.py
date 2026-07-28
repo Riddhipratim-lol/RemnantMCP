@@ -1,4 +1,4 @@
-import os
+from remnant.config import settings
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from datetime import datetime, timedelta, timezone
@@ -7,7 +7,7 @@ import uuid
 
 class PostgresStorage:
     def __init__(self, db_url: Optional[str] = None):
-        self.db_url = db_url or os.getenv("REMNANT_DB_URL")
+        self.db_url = db_url or settings.remnant_db_url
         
     def get_connection(self):
         if not self.db_url:

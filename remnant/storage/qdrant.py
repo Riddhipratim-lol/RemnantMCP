@@ -1,4 +1,4 @@
-import os
+from remnant.config import settings
 from typing import List
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import Distance, VectorParams, PointStruct
@@ -6,8 +6,8 @@ from remnant.structures import MemoryObject
 
 class QdrantClientManager:
     def __init__(self, url: str = None, api_key: str = None):
-        self.url = url or os.getenv("REMNANT_QDRANT_URL")
-        self.api_key = api_key or os.getenv("REMNANT_QDRANT_API_KEY")
+        self.url = url or settings.remnant_qdrant_url
+        self.api_key = api_key or settings.remnant_qdrant_api_key
         self.collection_name = "memory_vectors"
         
         # Local fallback if no URL

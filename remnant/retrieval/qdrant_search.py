@@ -6,7 +6,7 @@ vector similarity search against Qdrant Cloud to produce the top-K
 candidate memory IDs scoped to the correct project.
 """
 
-import os
+from remnant.config import settings
 from typing import Dict, List, Optional
 import uuid
 
@@ -36,8 +36,8 @@ class QdrantSemanticSearch:
         self.top_k = top_k
 
         # --- Qdrant client ---
-        qdrant_url = qdrant_url or os.getenv("REMNANT_QDRANT_URL")
-        qdrant_api_key = qdrant_api_key or os.getenv("REMNANT_QDRANT_API_KEY")
+        qdrant_url = qdrant_url or settings.remnant_qdrant_url
+        qdrant_api_key = qdrant_api_key or settings.remnant_qdrant_api_key
         if qdrant_url:
             self.qdrant = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
         else:
@@ -46,7 +46,7 @@ class QdrantSemanticSearch:
             self._bootstrap_collection()
 
         # --- Voyage client ---
-        voyage_api_key = voyage_api_key or os.getenv("VOYAGE_API_KEY")
+        voyage_api_key = voyage_api_key or settings.voyage_api_key
         if not voyage_api_key:
             raise ValueError("VOYAGE_API_KEY environment variable is not set.")
         self.voyage = voyageai.Client(api_key=voyage_api_key)

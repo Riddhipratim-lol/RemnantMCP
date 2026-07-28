@@ -8,7 +8,7 @@ candidate pool.  Full MemoryObject payloads are resolved from
 PostgreSQL for any new IDs discovered through graph traversal.
 """
 
-import os
+from remnant.config import settings
 from typing import List, Optional
 import uuid
 
@@ -38,13 +38,9 @@ class GraphExpansion:
         neo4j_password: Optional[str] = None,
         db_url: Optional[str] = None,
     ):
-        self.neo4j_uri = neo4j_uri or os.getenv(
-            "REMNANT_NEO4J_URL", "bolt://localhost:7687"
-        )
-        self.neo4j_user = neo4j_user or os.getenv("REMNANT_NEO4J_USERNAME", "neo4j")
-        self.neo4j_password = neo4j_password or os.getenv(
-            "REMNANT_NEO4J_PASSWORD", "password"
-        )
+        self.neo4j_uri = neo4j_uri or settings.remnant_neo4j_url
+        self.neo4j_user = neo4j_user or settings.remnant_neo4j_username
+        self.neo4j_password = neo4j_password or settings.remnant_neo4j_password
         self.driver = GraphDatabase.driver(
             self.neo4j_uri, auth=(self.neo4j_user, self.neo4j_password)
         )
