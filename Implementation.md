@@ -402,7 +402,7 @@ For each of the five system layers, we specify the responsibilities, concrete ta
 ### MCP Interface Connections
 
 ```
-      [AI Coding Assistant] (Cursor / Claude Desktop / Windsurf)
+      [AI Coding Assistant] (Cursor / Claude Desktop / Windsurf / VS Code / Antigravity IDE)
                                    |
                                    v  (JSON-RPC over stdio / SSE)
                       +--------------------------+
@@ -471,7 +471,7 @@ For each of the five system layers, we specify the responsibilities, concrete ta
 - [x] **Git Remote Resolution Hook**:
   - [x] Implement helper to execute `git remote get-url origin`.
   - [x] Normalize URLs (e.g. `git@github.com:org/repo.git` vs `https://github.com/org/repo`) into a unique key.
-- [x] **Claude & Cursor Configurations**: Create `mcp_config.json` examples for integrating the server command with standard clients.
+- [x] **Client Configurations**: Create `mcp_config.json` examples for integrating the server with Claude Desktop, Cursor, Windsurf, VS Code, and Antigravity IDE.
 - [x] **Audit Logger Interceptor**: Build middleware to capture MCP requests and write details to the database.
 - [x] **Implement remember_session Tool**:
   - [x] Parse parameters.

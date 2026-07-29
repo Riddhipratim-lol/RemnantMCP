@@ -33,7 +33,7 @@ AI coding assistants are fundamentally **amnesiac** — every session begins fro
 | **Lost Reasoning** | Why an architecture was chosen is never stored; only *what* was built survives in code |
 | **Repeated Failures** | Agents re-suggest approaches that were previously attempted and explicitly rejected |
 | **Context Tax** | Developers spend significant session time re-explaining constraints already communicated before |
-| **Tool Fragmentation** | Switching from Cursor to Claude to Windsurf resets all accumulated understanding |
+| **Tool Fragmentation** | Switching from Cursor to Claude to Windsurf to VS Code to Antigravity resets all accumulated understanding |
 | **Institutional Drift** | Long-running projects lose coherence as team members and tools change |
 
 Git preserves *what changed*. Documentation explains *what exists*. **Neither captures *why*.**
@@ -68,7 +68,7 @@ Each technology was chosen for a specific architectural purpose, not interchange
 The orchestration language. Python's ecosystem (LangChain, LangGraph, asyncio, psycopg2, neo4j driver) offers the deepest integration with every other tool in this stack. All agent logic, pipeline stages, and the MCP server are implemented in Python.
 
 ### Model Context Protocol (MCP)
-MCP is the **interface contract** between RemnantMCP and AI coding tools. Rather than building tool-specific plugins, the system exposes a single MCP server that any compliant client (Claude Desktop, Cursor, Windsurf, etc.) can connect to. This is the single most important architectural decision for cross-tool compatibility.
+MCP is the **interface contract** between RemnantMCP and AI coding tools. Rather than building tool-specific plugins, the system exposes a single MCP server that any compliant client (Claude Desktop, Cursor, Windsurf, VS Code, Antigravity IDE, etc.) can connect to. This is the single most important architectural decision for cross-tool compatibility.
 
 ### LangGraph
 The **agent execution engine**. LangGraph models the knowledge extraction process as a stateful directed graph where each node performs a specific reasoning task (e.g., classify artifact type → extract decisions → resolve entity references → store). Its state management and conditional branching support the complex multi-step reasoning required to convert raw session artifacts into structured memories.
@@ -107,7 +107,7 @@ RemnantMCP is composed of five sequential layers, each with a distinct responsib
 +-------------------------------------------------------------------------+
 |                        DEVELOPER ENVIRONMENT                            |
 |                                                                         |
-|   AI Coding Tool (Cursor / Claude / Windsurf / etc.)                   |
+|   AI Coding Tool (Cursor / Claude / Windsurf / VS Code / Antigravity IDE / etc.)   |
 |   Git Repository   .   Chat Logs   .   Terminal Output                 |
 +----------------------------+--------------------------------------------+
                              |  Session Artifacts
@@ -617,7 +617,8 @@ The server is built using **FastMCP**, a high-level Python framework that wraps 
                                       v
                     +---------------------------------+
                     |     AI Coding Assistant         |
-                    |  (Cursor / Claude / Windsurf)   |
+                    |  (Cursor / Claude / Windsurf /  |
+                    |   VS Code / Antigravity IDE)     |
                     |                                 |
                     |  Receives memory context        |
                     |  before generating any code     |
@@ -712,14 +713,45 @@ RemnantMCP achieves tool agnosticism through strict adherence to MCP:
 
 ### Tool Configuration Pattern
 
-Each AI coding assistant that supports MCP adds the following to its configuration:
+Each AI coding assistant that supports MCP adds the following to its configuration. File locations vary by tool:
+
+| Tool | Config File |
+|---|---|
+| **Claude Desktop** | `~/Library/Application Support/Claude/claude_desktop_config.json` |
+| **Cursor** | `.cursor/mcp.json` (project) or `~/.cursor/mcp.json` (global) |
+| **Windsurf** | `~/.codeium/windsurf/mcp_config.json` |
+| **VS Code** | `.vscode/mcp.json` (project) or via `MCP: Open User Configuration` |
+| **Antigravity IDE** | `.agents/mcp_config.json` (workspace) or `~/.gemini/config/mcp_config.json` (global) |
+
+Claude Desktop, Cursor, Windsurf, and Antigravity IDE all use the `mcpServers` key:
 
 ```json
 {
   "mcpServers": {
     "remnant": {
-      "command": "python",
+      "command": "/path/to/.venv/bin/python",
       "args": ["-m", "remnant.mcp_server"],
+      "env": {
+        "REMNANT_DB_URL": "postgresql://...",
+        "REMNANT_QDRANT_URL": "...",
+        "REMNANT_NEO4J_URL": "...",
+        "REMNANT_PROJECT_ROOT": "${workspaceFolder}"
+      }
+    }
+  }
+}
+```
+
+VS Code uses a `servers` key (not `mcpServers`) inside `.vscode/mcp.json`:
+
+```json
+{
+  "servers": {
+    "remnant": {
+      "type": "stdio",
+      "command": "/path/to/.venv/bin/python",
+      "args": ["-m", "remnant.mcp_server"],
+      "cwd": "${workspaceFolder}",
       "env": {
         "REMNANT_DB_URL": "postgresql://...",
         "REMNANT_QDRANT_URL": "...",
