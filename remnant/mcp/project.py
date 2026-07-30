@@ -57,6 +57,35 @@ def _url_to_deterministic_uuid(canonical_url: str) -> str:
     return str(uuid.uuid5(uuid.NAMESPACE_URL, canonical_url))
 
 
+# Generic directory names that are meaningless as project identifiers.
+# When a server (e.g. Render) runs from /opt/render/project/src the basename
+# would be "src" — useless as a project name.
+_GENERIC_NAMES = frozenset({"src", ".", "..", "project", "app", "code", "workspace", "unknown"})
+
+
+def _meaningful_basename(abs_path: str) -> str:
+    """
+    Return the most meaningful directory name from an absolute path.
+
+    Walks up the directory tree until it finds a basename that is not in the
+    set of known generic names. Falls back to the raw basename if all
+    ancestors are also generic.
+
+    Examples::
+        /opt/render/project/src  →  "project"   (skips "src")
+        /Users/alice/Projects/MyApp  →  "MyApp"
+        /  →  "unknown"
+    """
+    parts = os.path.normpath(abs_path).split(os.sep)
+    # Traverse from the leaf toward the root, skipping generic segments
+    for part in reversed(parts):
+        if part and part.lower() not in _GENERIC_NAMES:
+            return part
+    # All segments are generic — fall back
+    return os.path.basename(abs_path) or "unknown"
+
+
+
 # ---------------------------------------------------------------------------
 # Git helper
 # ---------------------------------------------------------------------------
@@ -118,12 +147,13 @@ class ProjectDetector:
         if raw_url:
             canonical = _normalize_remote_url(raw_url)
             project_id = _url_to_deterministic_uuid(canonical)
+            # Use the last meaningful path segment of the remote URL as the name
             project_name = canonical.split("/")[-1] or canonical
         else:
             # Fallback: derive project identity from the directory path itself
             canonical = os.path.abspath(root)
             project_id = str(uuid.uuid5(uuid.NAMESPACE_OID, canonical))
-            project_name = os.path.basename(canonical) or "unknown"
+            project_name = _meaningful_basename(canonical)
 
         # Ensure the project exists in PostgreSQL (idempotent upsert)
         try:
@@ -138,3 +168,4 @@ class ProjectDetector:
             # server can still operate in degraded mode
             print(f"[ProjectDetector] PostgreSQL upsert failed: {exc}")
             return project_id
+

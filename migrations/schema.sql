@@ -89,3 +89,16 @@ CREATE INDEX IF NOT EXISTS idx_memories_memory_type ON memories(memory_type);
 CREATE INDEX IF NOT EXISTS idx_sessions_project_id ON sessions(project_id);
 CREATE INDEX IF NOT EXISTS idx_session_log_project_id ON session_log(project_id);
 CREATE INDEX IF NOT EXISTS idx_session_log_processed_sha ON session_log(processed_sha);
+
+-- GIN indexes for PostgreSQL full-text search (used by the Layer 4 fallback search).
+-- These are required for plainto_tsquery / to_tsvector matching in fallback.py.
+-- Without these, the tsvector WHERE clause performs a sequential scan or fails entirely,
+-- causing recall_context to return 0 results even when memories exist.
+CREATE INDEX IF NOT EXISTS idx_memories_fts_title_content
+    ON memories
+    USING GIN (to_tsvector('english', coalesce(title, '') || ' ' || coalesce(content, '') || ' ' || coalesce(rationale, '')));
+
+-- Composite index to speed up the most common retrieval query pattern:
+-- project_id filter + is_superseded filter + memory_type filter
+CREATE INDEX IF NOT EXISTS idx_memories_project_active
+    ON memories(project_id, is_superseded, memory_type);

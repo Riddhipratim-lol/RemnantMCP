@@ -47,9 +47,13 @@ class PostgresFallbackSearch:
         """
         Execute a full-text search query against PostgreSQL.
 
-        First attempts to use tsvector ranking (GIN index).
-        If the tsquery parse fails (e.g. unsupported syntax), falls back
-        to a simple ILIKE pattern search.
+        Strategy (in order of preference):
+          1. tsvector ranking with websearch_to_tsquery for natural multi-word queries.
+          2. If tsvector returns 0 results, automatically try ILIKE pattern search.
+          3. If ILIKE also fails (exception), return empty list.
+
+        This layered approach ensures recall_context is never silently empty
+        when memories exist for the project.
 
         Args:
             query:       The user query text.
@@ -61,7 +65,11 @@ class PostgresFallbackSearch:
             List of MemoryObject instances ordered by relevance.
         """
         try:
-            return self._ts_search(query, project_id, top_k, memory_type)
+            results = self._ts_search(query, project_id, top_k, memory_type)
+            if results:
+                return results
+            # tsvector found nothing — fall through to ILIKE for broader matching
+            return self._ilike_search(query, project_id, top_k, memory_type)
         except Exception as exc:
             print(f"[FallbackSearch] tsvector search failed ({exc}), trying ILIKE.")
             try:
@@ -69,6 +77,7 @@ class PostgresFallbackSearch:
             except Exception as exc2:
                 print(f"[FallbackSearch] ILIKE search also failed: {exc2}")
                 return []
+
 
     # ------------------------------------------------------------------
     # Private helpers
@@ -84,8 +93,17 @@ class PostgresFallbackSearch:
         """
         PostgreSQL tsvector full-text search with ts_rank ordering.
         Uses plainto_tsquery for safe tokenisation of arbitrary user input.
+
+        The tsvector expression MUST match the GIN index definition in schema.sql
+        exactly (title + content + rationale) so the index is used efficiently.
         """
         proj_uuid = self.pg._normalize_uuid(project_id)
+
+        # plainto_tsquery requires at least one lexeme; single characters or
+        # very short strings produce an empty tsquery that matches nothing.
+        # In that case, fall back directly to the ILIKE search.
+        if len(query.strip()) < 2:
+            return self._ilike_search(query, project_id, top_k, memory_type)
 
         base_sql = """
             SELECT
@@ -95,15 +113,22 @@ class PostgresFallbackSearch:
                 confidence_score, created_at, updated_at,
                 is_superseded, superseded_by,
                 ts_rank(
-                    to_tsvector('english', coalesce(title,'') || ' ' || coalesce(content,'')),
+                    to_tsvector('english',
+                        coalesce(title, '') || ' ' ||
+                        coalesce(content, '') || ' ' ||
+                        coalesce(rationale, '')
+                    ),
                     plainto_tsquery('english', %s)
                 ) AS rank
             FROM memories
             WHERE
                 project_id = %s
                 AND is_superseded = FALSE
-                AND to_tsvector('english', coalesce(title,'') || ' ' || coalesce(content,''))
-                    @@ plainto_tsquery('english', %s)
+                AND to_tsvector('english',
+                        coalesce(title, '') || ' ' ||
+                        coalesce(content, '') || ' ' ||
+                        coalesce(rationale, '')
+                    ) @@ plainto_tsquery('english', %s)
         """
         params: list = [query, proj_uuid, query]
 
@@ -124,13 +149,68 @@ class PostgresFallbackSearch:
         memory_type: Optional[str],
     ) -> List[MemoryObject]:
         """
-        Simple pattern-matching fallback using ILIKE (case-insensitive LIKE).
-        Searches title and content columns.
+        Pattern-matching fallback using ILIKE (case-insensitive LIKE).
+
+        Splits the query into individual keywords and uses OR logic so that
+        ANY keyword match retrieves the memory. This is deliberately broad —
+        it is a last-resort fallback to ensure memories are surfaced even
+        when tsvector produces no results (e.g. short stop-words, lexeme misses).
+
+        Also serves as a broad "return recent memories" fallback when the query
+        is very short (single character, empty, or a stop-word that FTS drops).
         """
         proj_uuid = self.pg._normalize_uuid(project_id)
-        pattern = f"%{query}%"
 
-        base_sql = """
+        # For very short / empty queries, return most recent active memories
+        # rather than searching — ensures recall_context is never empty when
+        # memories exist for the project.
+        query_stripped = query.strip()
+        if not query_stripped or len(query_stripped) < 2:
+            base_sql = """
+                SELECT
+                    id, project_id, session_id, memory_type,
+                    title, content, rationale,
+                    components, file_paths, tags,
+                    confidence_score, created_at, updated_at,
+                    is_superseded, superseded_by
+                FROM memories
+                WHERE
+                    project_id = %s
+                    AND is_superseded = FALSE
+            """
+            params: list = [proj_uuid]
+            if memory_type:
+                base_sql += " AND memory_type = %s"
+                params.append(memory_type)
+            base_sql += " ORDER BY created_at DESC LIMIT %s"
+            params.append(top_k)
+            return self._execute_and_map(base_sql, params)
+
+        # Split into keywords (2+ chars), deduplicate, limit to 10 tokens
+        # to keep the query reasonable.
+        tokens = list(dict.fromkeys(
+            t for t in query_stripped.split() if len(t) >= 2
+        ))[:10]
+
+        if not tokens:
+            # Fallback: treat the whole query as one pattern
+            tokens = [query_stripped]
+
+        # Build: (title ILIKE %tok1% OR content ILIKE %tok1% OR rationale ILIKE %tok1%)
+        #    OR  (title ILIKE %tok2% OR content ILIKE %tok2% OR rationale ILIKE %tok2%)
+        # Using OR across tokens so ANY keyword is enough for a match.
+        token_clauses = []
+        params = [proj_uuid]
+        for tok in tokens:
+            pattern = f"%{tok}%"
+            token_clauses.append(
+                "(title ILIKE %s OR content ILIKE %s OR rationale ILIKE %s)"
+            )
+            params.extend([pattern, pattern, pattern])
+
+        where_tokens = " OR ".join(token_clauses)
+
+        base_sql = f"""
             SELECT
                 id, project_id, session_id, memory_type,
                 title, content, rationale,
@@ -141,18 +221,29 @@ class PostgresFallbackSearch:
             WHERE
                 project_id = %s
                 AND is_superseded = FALSE
-                AND (title ILIKE %s OR content ILIKE %s)
+                AND ({where_tokens})
         """
-        params: list = [proj_uuid, pattern, pattern]
 
         if memory_type:
             base_sql += " AND memory_type = %s"
-            params.append(memory_type)
 
         base_sql += " ORDER BY confidence_score DESC LIMIT %s"
-        params.append(top_k)
 
-        return self._execute_and_map(base_sql, params)
+        # Build final param list matching the SQL placeholder order:
+        #   1. project_id  (for project_id = %s)
+        #   2. token patterns  (3 per token: title, content, rationale)
+        #   3. memory_type  (optional)
+        #   4. top_k  (for LIMIT %s)
+        final_params: list = [proj_uuid]
+        for tok in tokens:
+            pat = f"%{tok}%"
+            final_params.extend([pat, pat, pat])
+        if memory_type:
+            final_params.append(memory_type)
+        final_params.append(top_k)
+
+        return self._execute_and_map(base_sql, final_params)
+
 
     def _execute_and_map(self, sql: str, params: list) -> List[MemoryObject]:
         """

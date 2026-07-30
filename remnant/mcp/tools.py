@@ -115,16 +115,17 @@ def remember_session(
     """
     t0 = time.monotonic()
     root = project_root or settings.remnant_project_root or os.getcwd()
+
+    # Resolve project first so audit log always records the real UUID
+    resolved_project_id = project_id or _get_project_detector().resolve(root)
+
     input_params = {
-        "project_id": project_id,
+        "project_id": resolved_project_id,   # use resolved value, not the raw optional arg
         "commit_sha": commit_sha,
         "chat_transcript": chat_transcript,
         "session_notes": session_notes,
         "project_root": root,
     }
-
-    # Resolve project
-    resolved_project_id = project_id or _get_project_detector().resolve(root)
 
     try:
         # ---- Layer 1: Ingestion ----
@@ -175,6 +176,9 @@ def remember_session(
         storage_results: Dict[str, Any] = final_state.get("storage_results", {})
         memories_written: int = storage_results.get("memories_written", 0)
         errors: List[str] = storage_results.get("errors", [])
+
+        # Close the session — mark ended_at and flip status to COMPLETED
+        _get_pg().close_session(session_id)
 
         summary = (
             f"Extracted {memories_written} memory/memories from "
@@ -257,16 +261,17 @@ def recall_context(
     """
     t0 = time.monotonic()
     root = project_root or settings.remnant_project_root or os.getcwd()
+
+    resolved_project_id = project_id or _get_project_detector().resolve(root)
+
     input_params = {
         "query": query,
-        "project_id": project_id,
+        "project_id": resolved_project_id,   # resolved value for accurate audit trail
         "component": component,
         "file_path": file_path,
         "memory_types": memory_types,
         "max_tokens": max_tokens,
     }
-
-    resolved_project_id = project_id or _get_project_detector().resolve(root)
 
     try:
         result = _get_retrieval_coordinator().retrieve(
@@ -348,9 +353,10 @@ def list_decisions(
     """
     t0 = time.monotonic()
     root = project_root or settings.remnant_project_root or os.getcwd()
-    input_params = {"project_id": project_id, "component": component}
 
     resolved_project_id = project_id or _get_project_detector().resolve(root)
+
+    input_params = {"project_id": resolved_project_id, "component": component}
 
     try:
         decisions = _query_memories_by_type(
@@ -414,9 +420,10 @@ def get_failed_approaches(
     """
     t0 = time.monotonic()
     root = project_root or settings.remnant_project_root or os.getcwd()
-    input_params = {"query": query, "project_id": project_id}
 
     resolved_project_id = project_id or _get_project_detector().resolve(root)
+
+    input_params = {"query": query, "project_id": resolved_project_id}
 
     try:
         rows = _query_memories_by_type(

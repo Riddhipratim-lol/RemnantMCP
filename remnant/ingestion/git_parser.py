@@ -1,4 +1,3 @@
-import os
 from typing import Dict, List, Tuple, Optional
 import git
 
@@ -10,8 +9,24 @@ def parse_git_repo(repo_path: str, last_processed_sha: Optional[str] = None) -> 
         git_diff_raw (str): The raw combined git diff of changes.
         commit_messages (List[str]): List of commit messages in the parsed range.
         file_change_stats (List[Dict]): List of dicts, each with 'file_path', 'insertions', 'deletions'.
+
+    Raises:
+        ValueError: If repo_path does not exist on the current filesystem.
+                    This is the expected failure mode when a cloud-deployed server
+                    receives a local machine path (e.g. /Users/alice/Projects/MyApp
+                    while running on Render at /opt/render/project/src).
     """
-    repo = git.Repo(repo_path)
+    try:
+        repo = git.Repo(repo_path)
+    except git.exc.NoSuchPathError:
+        raise ValueError(
+            f"Repository path does not exist on this server: '{repo_path}'. "
+            "If RemnantMCP is running as a cloud service (Render, Railway, etc.), "
+            "the project_root must be a path accessible on the server filesystem, "
+            "not a local machine path. Leave project_root empty to use the server's "
+            "working directory, or pass the correct server-side path."
+        )
+
     
     # Check if repo is empty or HEAD is invalid
     if repo.bare or not repo.head.is_valid():

@@ -245,3 +245,37 @@ class PostgresStorage:
         except Exception as e:
             print(f"PostgreSQL storage error in mark_superseded: {e}")
             return False
+
+    def close_session(self, session_id: str, status: str = "COMPLETED") -> bool:
+        """
+        Mark a session as completed by setting ended_at and updating status.
+
+        Called by remember_session after the LangGraph extraction graph
+        finishes successfully, fulfilling the sessions schema contract:
+            ended_at TIMESTAMP WITH TIME ZONE
+            status   VARCHAR(50)  (ACTIVE → COMPLETED)
+
+        Args:
+            session_id: UUID string of the session to close.
+            status:     Final status string (default: 'COMPLETED').
+
+        Returns:
+            True if the row was updated, False otherwise.
+        """
+        sess_uuid = self._normalize_uuid(session_id)
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        UPDATE sessions
+                        SET ended_at = %s, status = %s
+                        WHERE id = %s
+                        """,
+                        (datetime.now(timezone.utc), status, sess_uuid),
+                    )
+                    conn.commit()
+                    return cur.rowcount > 0
+        except Exception as e:
+            print(f"PostgreSQL storage error in close_session: {e}")
+            return False
