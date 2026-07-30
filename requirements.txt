@@ -1,7 +1,6 @@
 # Model Context Protocol (MCP)
 fastmcp
 
-
 # LLM & Agent Frameworks
 langchain
 langchain-core
@@ -20,5 +19,6 @@ neo4j
 
 # Utilities
 python-dotenv
+pydantic-settings
 GitPython
 tiktoken
