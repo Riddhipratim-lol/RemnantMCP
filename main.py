@@ -5,8 +5,8 @@ Launches the FastMCP server which exposes the five RemnantMCP tools
 to any compliant AI coding assistant (Cursor, Claude Desktop, Windsurf, VS Code, Antigravity IDE, etc.).
 
 Transport is auto-selected:
-  - stdio  → when launched locally as a subprocess by an MCP client
-  - SSE    → when run as a cloud Web Service (e.g. Render, Railway)
+  - stdio → when launched locally as a subprocess by an MCP client
+  - http  → Streamable HTTP (modern MCP standard) when run as a cloud Web Service (Render, Railway)
 
 Usage:
     python main.py
@@ -24,7 +24,7 @@ def main():
 
     if port_env or transport_env:
         port = int(port_env or 8000)
-        transport = transport_env or "sse"
+        transport = transport_env or "http"
         mcp.run(transport=transport, host="0.0.0.0", port=port)
     else:
         mcp.run()
