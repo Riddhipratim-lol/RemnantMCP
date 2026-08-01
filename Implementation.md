@@ -160,7 +160,7 @@ For each of the five system layers, we specify the responsibilities, concrete ta
     *   `classified_artifacts` (List[Dict]): Routed packets target-bound to extractors.
 *   **Interconnections & Data Flow**: Connected from **Layer 1, Sub-Phase 3 (Session Grouper & Deduplicator)**, taking the list of `final_artifacts` from the graph state. It routes and fanned out subsets of `ArtifactObject` objects to the appropriate specialized extractor nodes in **Layer 2, Sub-Phase 3 (Specialized Extractor Nodes)** using LangGraph's dynamic Send API.
 
-#### 3. Specialized Extractor Nodes (Gemini Flash Lite)
+#### 3. Specialized Extractor Nodes (Gemini 3.5 Flash Lite)
 *   **What it does**: Executes prompts engineered to extract seven structured memory types:
     1.  `ARCHITECTURAL_DECISION`
     2.  `IMPLEMENTATION_RATIONALE`
@@ -209,7 +209,7 @@ For each of the five system layers, we specify the responsibilities, concrete ta
 - [x] **Define Structures**: Implement `ExtractionState` (TypedDict) and `MemoryObject` (dataclass) in `remnant/structures.py`.
 - [x] **LangGraph Topology Setup**: In `remnant/agent/graph.py`, build the `StateGraph` skeleton.
 - [x] **Artifact Router Node**: Code routing logic evaluating `ArtifactObject.source_type`.
-- [x] **Prompt Engineering (Gemini Flash Lite)**:
+- [x] **Prompt Engineering (Gemini 3.5 Flash Lite)**:
   - [x] Write system instruction templates for Git Diff extraction (`code_extract`).
   - [x] Write system instruction templates for Chat Transcript extraction (`chat_extractor`).
   - [x] Write system instruction templates for Error/Log extraction (`error_extractor`).

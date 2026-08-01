@@ -91,8 +91,8 @@ The **semantic representation model**. Voyage Code 3 is a code-specialized embed
 ### Voyage rerank-2.5-lite
 The **re-ranking model**. A purpose-built cross-encoder model from Voyage AI that scores `(query, document)` pairs directly, producing deterministic relevance scores with low latency (~100–300ms) and minimal cost. Because it shares the same code-specialized semantic space as Voyage Code 3 embeddings, ranking scores are highly consistent with the initial retrieval stage. It is used after Qdrant semantic search to reorder the candidate memory set before context packing.
 
-### Gemini Flash Lite
-The **reasoning model** for knowledge extraction. Flash Lite provides a strong combination of speed, cost-efficiency, and sufficient reasoning capability for structured extraction tasks. It is used for: classifying artifacts, extracting decisions, and resolving entities.
+### Gemini 3.5 Flash Lite
+The **reasoning model** for knowledge extraction. Gemini 3.5 Flash Lite provides a strong combination of speed, cost-efficiency, and sufficient reasoning capability for structured extraction tasks. It is used for: classifying artifacts, extracting decisions, and resolving entities.
 
 ### Git
 The **primary source artifact**. Git diffs, commit messages, branch histories, and file change patterns are the richest structured signal available at the end of a coding session. Git provides the ground truth for *what* changed, which the system then reasons about to infer *why*.
@@ -119,7 +119,7 @@ RemnantMCP is composed of five sequential layers, each with a distinct responsib
                              |  Normalized Artifact Objects
                              v
 +-------------------------------------------------------------------------+
-|  LAYER 2 -- KNOWLEDGE EXTRACTION AGENT  (LangGraph + Gemini Flash Lite)|
+|  LAYER 2 -- KNOWLEDGE EXTRACTION AGENT  (LangGraph + Gemini 3.5 Flash Lite)|
 |  Classify -> Extract -> Resolve -> Validate -> Structure               |
 +----------------------------+--------------------------------------------+
                              |  Structured Memory Objects
@@ -513,7 +513,7 @@ The server is built using **FastMCP**, a high-level Python framework that wraps 
                          |  |extract   |  |extract   |  |extract    |           |
                          |  |          |  |          |  |           |           |
                          |  |Gemini    |  |Gemini    |  |Gemini     |           |
-                         |  |Flash Lite|  |Flash Lite|  |Flash Lite |           |
+                         |  |3.5 Flash |  |3.5 Flash |  |3.5 Flash  |           |
                          |  +-----+----+  +-----+----+  +-----+-----+           |
                          |        +-------------+-------------+                 |
                          |                      |                               |
@@ -776,7 +776,7 @@ The server auto-detects the project by calling `git remote get-url origin` from 
 | **Source code in memories** | Code snippets are stored only as file paths + line ranges; full source is never persisted in the memory store |
 | **Secret leakage in transcripts** | Ingestion pipeline runs a regex-based redaction pass (API keys, tokens, passwords) before LLM processing |
 | **Cross-project isolation** | Every Qdrant query mandates a `project_id` filter; Neo4j uses project-scoped subgraph labels |
-| **LLM data exposure** | Gemini Flash Lite is used with API calls (not fine-tuning); no training data retention per Google API policy |
+| **LLM data exposure** | Gemini 3.5 Flash Lite is used with API calls (not fine-tuning); no training data retention per Google API policy |
 | **PostgreSQL credentials** | Managed via environment variables; no credentials in source code |
 | **Multi-user isolation** | Each developer's project scope is isolated by project_id; no shared memory across projects without explicit configuration |
 

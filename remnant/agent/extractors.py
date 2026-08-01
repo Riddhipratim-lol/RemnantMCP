@@ -24,7 +24,7 @@ class ExtractionResult(BaseModel):
 
 def _get_llm():
     return init_chat_model(
-        "google_genai:gemini-3.1-flash-lite",
+        "google_genai:gemini-3.5-flash-lite",
         temperature=0.1
     ).with_structured_output(ExtractionResult)
 

@@ -109,6 +109,7 @@ class QdrantSemanticSearch:
         k = top_k or self.top_k
 
         # Build Qdrant filter — project_id is mandatory
+        # Filters project id payload for cross project isolation
         must_conditions: List[qdrant_models.Condition] = [
             qdrant_models.FieldCondition(
                 key="project_id",
@@ -116,6 +117,7 @@ class QdrantSemanticSearch:
             )
         ]
 
+        # Append additional filters
         if filters:
             for field_key, field_val in filters.items():
                 if field_val is not None:
