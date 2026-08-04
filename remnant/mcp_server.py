@@ -62,13 +62,23 @@ from remnant.mcp.tools import (
 mcp = FastMCP(
     name="RemnantMCP",
     instructions=(
-        "RemnantMCP is a persistent cross-tool project memory system. "
-        "Use 'remember_session' at the end of a coding session to capture decisions, "
-        "rationale, failed approaches, and constraints. "
-        "Use 'recall_context' at the start of a session or when you need historical context. "
-        "Use 'list_decisions' to see all architectural decisions for a project. "
-        "Use 'get_failed_approaches' to avoid repeating previously-tried solutions. "
-        "Use 'mark_superseded' to deprecate an outdated memory."
+        "RemnantMCP is a persistent cross-tool project memory system that captures and recalls "
+        "engineering decisions, rationale, failed approaches, and constraints across sessions and tools.\n\n"
+        "IMPORTANT — MEMORY CAPTURE QUALITY:\n"
+        "When calling 'remember_session', ALWAYS pass the full session conversation as 'chat_transcript'. "
+        "This is the richest signal for memory extraction. If you pass only 'session_notes' (a short "
+        "summary), the system will still extract from it as a fallback, but far fewer and lower-quality "
+        "memories will be captured. The full transcript is the preferred input.\n\n"
+        "TOOL USAGE:\n"
+        "- 'remember_session': Call at the END of every coding session. Pass 'chat_transcript' (the full "
+        "conversation text) and 'session_notes' (a brief summary). The system auto-reads git diffs and "
+        "commit history from the workspace.\n"
+        "- 'recall_context': Call at the START of a session or before implementing anything. Retrieves "
+        "relevant decisions, rationale, and past failures for your current task.\n"
+        "- 'list_decisions': Lists all stored architectural decisions for the project.\n"
+        "- 'get_failed_approaches': Check before proposing a solution — avoids repeating previously-tried "
+        "and rejected approaches.\n"
+        "- 'mark_superseded': Deprecate an outdated memory when a decision has been replaced."
     ),
 )
 
@@ -98,12 +108,23 @@ def remember_session_tool(
     architectural decisions, implementation rationale, failed approaches,
     bug resolutions, design tradeoffs, component relationships, and constraints.
 
+    ** IMPORTANT — QUALITY OF CAPTURED MEMORIES **
+    Pass the full session conversation as ``chat_transcript`` whenever possible.
+    This is the richest signal for the extraction pipeline. If ``chat_transcript``
+    is omitted, the system falls back to ``session_notes`` as the sole text
+    source — useful but produces fewer and lower-confidence memories.
+    The ideal call passes BOTH:
+      • chat_transcript — the complete conversation text (AI + developer turns)
+      • session_notes   — a brief human summary of what was accomplished
+
     Args:
         project_id:      (Optional) Explicit project UUID. Auto-detected from
                          git remote URL if omitted.
-        chat_transcript: (Optional) The full session chat transcript text.
+        chat_transcript: The full session chat transcript text (strongly recommended).
+                         When provided, this is the primary extraction source.
         commit_sha:      (Optional) Target git commit SHA. Defaults to HEAD.
-        session_notes:   (Optional) Any additional notes or context to capture.
+        session_notes:   (Optional) Brief summary or additional notes. Used as
+                         the sole extraction source when chat_transcript is absent.
         project_root:    (Optional) Absolute path to the workspace directory.
                          Defaults to REMNANT_PROJECT_ROOT env var or cwd.
 

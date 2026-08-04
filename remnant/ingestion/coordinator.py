@@ -105,13 +105,17 @@ class IngestionCoordinator:
                 "metadata": {"file_stats": file_change_stats}
             })
             
-        # Chat transcript artifact
-        if chat_transcript and chat_transcript.strip():
+        # Chat transcript artifact — fall back to session_notes when no full
+        # transcript is provided so notes are never silently discarded.
+        chat_content = chat_transcript if (chat_transcript and chat_transcript.strip()) else None
+        notes_content = session_notes if (session_notes and session_notes.strip()) else None
+        raw_chat_content = chat_content or notes_content
+        if raw_chat_content:
             raw_artifacts.append({
                 "source_type": SourceType.CHAT,
-                "raw_content": chat_transcript,
+                "raw_content": raw_chat_content,
                 "timestamp": timestamp,
-                "metadata": {"session_notes": session_notes}
+                "metadata": {"session_notes": session_notes, "is_notes_fallback": chat_content is None},
             })
             
         # Error log / logs artifact

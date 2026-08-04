@@ -226,3 +226,84 @@ def test_coordinator_orchestration(mocker):
         assert "ghp_" not in art.raw_content
         assert "mysecretkeyvalue123" not in art.raw_content
         assert "pwd" not in art.raw_content
+
+
+def test_coordinator_session_notes_only_creates_chat_artifact(mocker):
+    """When no chat_transcript is provided, session_notes must create a CHAT artifact."""
+    mock_db = MockPostgresStorage()
+
+    mocker.patch(
+        "remnant.ingestion.coordinator.parse_git_repo",
+        return_value=("", [], [])  # no git changes
+    )
+
+    coordinator = IngestionCoordinator(db_storage=mock_db)
+    _, artifacts = coordinator.ingest_session(
+        repo_path="/mock/repo",
+        project_id="test-project",
+        chat_transcript=None,
+        session_notes="Implemented Phase 8 incremental indexing with ManifestManager.",
+    )
+
+    # Must produce exactly one CHAT artifact derived from session_notes
+    assert len(artifacts) == 1
+    assert artifacts[0].source_type == SourceType.CHAT
+    assert "ManifestManager" in artifacts[0].raw_content
+    # Metadata should flag this as a notes fallback
+    assert artifacts[0].metadata.get("is_notes_fallback") is True
+
+
+def test_coordinator_chat_transcript_takes_priority_over_notes(mocker):
+    """When chat_transcript is provided, it is used verbatim; session_notes become metadata only."""
+    mock_db = MockPostgresStorage()
+
+    mocker.patch(
+        "remnant.ingestion.coordinator.parse_git_repo",
+        return_value=("", [], [])
+    )
+
+    coordinator = IngestionCoordinator(db_storage=mock_db)
+    _, artifacts = coordinator.ingest_session(
+        repo_path="/mock/repo",
+        project_id="test-project",
+        chat_transcript="Full conversation transcript goes here.",
+        session_notes="Short summary.",
+    )
+
+    chat_artifacts = [a for a in artifacts if a.source_type == SourceType.CHAT]
+    assert len(chat_artifacts) == 1
+    assert chat_artifacts[0].raw_content == "Full conversation transcript goes here."
+    assert chat_artifacts[0].metadata.get("is_notes_fallback") is False
+
+
+def test_parse_git_repo_workspace_diffs_returned_without_commits(mocker):
+    """Phase 1 (workspace diffs) must be returned even when there are no commits."""
+    mock_repo = mocker.patch("git.Repo")
+    mock_instance = mock_repo.return_value
+    mock_instance.bare = False
+    mock_instance.head.is_valid.return_value = True
+
+    # Phase 1: unstaged diff has content, staged is empty
+    def fake_diff(*args, **kwargs):
+        if args == ('--numstat',):
+            return "5\t2\tsrc/main.py"
+        if args == ('--numstat', '--cached'):
+            return ""
+        if args == ('--cached',):
+            return ""
+        return "--- a/src/main.py\n+++ b/src/main.py\n@@ -1 +1 @@\n-old\n+new"
+
+    mock_instance.git.diff.side_effect = fake_diff
+
+    # Phase 2: HEAD has parents, but diff returns nothing new
+    mock_commit = mocker.MagicMock()
+    mock_commit.message = "Last commit"
+    mock_commit.parents = [mocker.MagicMock()]  # non-initial commit
+    mock_instance.head.commit = mock_commit
+    mock_instance.git.diff.side_effect = fake_diff  # same mock covers HEAD~1..HEAD too
+
+    diff, commits, stats = parse_git_repo("/mock/repo")
+
+    # Workspace diff must be present in the output
+    assert "src/main.py" in diff
+    assert any(s["file_path"] == "src/main.py" for s in stats)
