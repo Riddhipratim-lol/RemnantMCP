@@ -8,14 +8,14 @@ from remnant.structures import ArtifactObject
 
 class ExtractedMemory(BaseModel):
     memory_type: str = Field(description="One of: ARCHITECTURAL_DECISION, IMPLEMENTATION_RATIONALE, FAILED_APPROACH, BUG_RESOLUTION, DESIGN_TRADEOFF, COMPONENT_RELATIONSHIP, CONSTRAINT")
-    title: str = Field(description="Short summary")
-    content: str = Field(description="Detailed explanation")
-    rationale: str = Field(default="", description="The 'why' behind the memory")
-    alternatives_considered: List[str] = Field(default_factory=list, description="Alternatives evaluated")
-    outcome: str = Field(default="", description="What ultimately happened")
-    components: List[str] = Field(default_factory=list, description="Logical component names")
-    file_paths: List[str] = Field(default_factory=list, description="Affected file paths")
-    tags: List[str] = Field(default_factory=list, description="Searchable tags")
+    title: str = Field(description="Short, specific summary — max 15 words. Should be unique and self-explanatory out of context.")
+    content: str = Field(description="Detailed explanation. 2–5 sentences. Must be self-contained and readable without the surrounding conversation. Be specific: name the files, functions, or services involved.")
+    rationale: str = Field(default="", description="The 'why' behind the memory. 1–3 sentences. Required for ARCHITECTURAL_DECISION, DESIGN_TRADEOFF, IMPLEMENTATION_RATIONALE.")
+    alternatives_considered: List[str] = Field(default_factory=list, description="Alternatives evaluated and rejected. Each item: one concise phrase, not a sentence.")
+    outcome: str = Field(default="", description="What ultimately happened or was decided. 1–2 sentences.")
+    components: List[str] = Field(default_factory=list, description="Logical component names (e.g. 'AuthService', 'ingestion.coordinator'). Use dotted module paths for code components.")
+    file_paths: List[str] = Field(default_factory=list, description="Affected file paths relative to project root (e.g. 'remnant/mcp/project.py'). Include only files directly touched by this memory.")
+    tags: List[str] = Field(default_factory=list, description="3–6 searchable keyword tags. Use snake_case. Include the layer (e.g. 'layer_5_mcp', 'neo4j', 'deployment').")
 
 
 class ExtractionResult(BaseModel):
@@ -100,6 +100,7 @@ Rules:
 - A single artifact may yield multiple memories of DIFFERENT types — extract ALL that are present.
 - Do NOT collapse two distinct insights into one memory; keep them separate.
 - Every memory must have a clear, human-readable title and enough content to stand alone out of context.
+- DEDUPLICATION: If the same decision, bug, constraint, or approach is mentioned or revisited multiple times in the input (common in long transcripts), extract it EXACTLY ONCE using the most complete information available across all mentions. Do not create separate memory entries for each recurrence of the same topic.
 - Output ONLY valid structured data matching the schema. No prose outside the schema.
 """
 
@@ -122,7 +123,10 @@ def code_extract(state: dict) -> dict:
     )
     user_prompt = (
         "Analyze this code change and extract ALL structured memories present. "
-        "Look for all seven memory types, not just the obvious ones.\n\n"
+        "If the diff spans multiple files, process each changed file independently first, "
+        "then identify any cross-file patterns (e.g. a refactor that touches 5 files is ONE "
+        "ARCHITECTURAL_DECISION memory, not five separate ones). "
+        "Look for all seven memory types.\n\n"
         "Content:\n{content}"
     )
     return _process_extraction(state, system_prompt, user_prompt)
@@ -142,6 +146,14 @@ def chat_extractor(state: dict) -> dict:
         "- COMPONENT_RELATIONSHIP: References to how services, modules, or files interact — even if mentioned informally in conversation.\n"
         "- CONSTRAINT: Requirements, deadlines, compatibility limits, or rules the developer explicitly states as non-negotiable or given.\n"
         "\n"
+        "HANDLING LONG TRANSCRIPTS (full session conversations):\n"
+        "If the content is a full session transcript (many exchanges, hundreds of lines), apply this strategy:\n"
+        "  1. Scan the ENTIRE transcript from beginning to end before extracting anything. Important insights often appear mid-session, not just at the start or end.\n"
+        "  2. Topics frequently recur across a session (e.g. the same bug discussed at the start and revisited later). Extract each topic ONCE with the most complete information from all mentions combined.\n"
+        "  3. Look especially for: decisions made after failed attempts earlier in the session, constraints that become clear only through debugging, tradeoffs that emerge from back-and-forth iteration.\n"
+        "  4. Ignore pleasantries, filler exchanges ('ok', 'got it', 'let me try'), and pure status updates with no engineering content.\n"
+        "  5. Code blocks embedded in the chat (tool calls, diffs, error outputs) are primary evidence — extract the engineering insight from them, not just from the surrounding prose.\n"
+        "\n"
         "HANDLING SPARSE OR SUMMARISED INPUTS:\n"
         "If the content is short (a few sentences or a paragraph summary rather than a full raw transcript), "
         "extract knowledge more aggressively — treat each distinct engineering observation as a candidate memory. "
@@ -155,7 +167,8 @@ def chat_extractor(state: dict) -> dict:
     )
     user_prompt = (
         "Analyze this chat transcript (or session summary) and extract ALL structured memories present. "
-        "If the input is short or summarised, be more aggressive: each distinct engineering insight or constraint is a separate memory.\n\n"
+        "For full transcripts: scan start-to-end, consolidate recurring topics, focus on engineering insights embedded in code blocks and error outputs. "
+        "For short/summarised inputs: be aggressive — each distinct engineering insight or constraint is a separate memory.\n\n"
         "Content:\n{content}"
     )
     return _process_extraction(state, system_prompt, user_prompt)

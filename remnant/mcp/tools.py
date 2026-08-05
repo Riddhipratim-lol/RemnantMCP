@@ -227,7 +227,7 @@ def recall_context(
     component: Optional[str] = None,
     file_path: Optional[str] = None,
     memory_types: Optional[List[str]] = None,
-    max_tokens: int = 2000,
+    max_tokens: int = 8000,
     project_root: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
@@ -246,7 +246,8 @@ def recall_context(
         file_path:    Optional file path to scope retrieval.
         memory_types: Optional list of MemoryType strings to filter
                       (e.g. ["ARCHITECTURAL_DECISION", "FAILED_APPROACH"]).
-        max_tokens:   Token budget for the returned context block (default: 2000).
+        max_tokens:   Token budget for the returned context block (default: 8000,
+                      sized for Gemini-class clients with 1M token context windows).
         project_root: Workspace directory path for auto-detection.
 
     Returns:

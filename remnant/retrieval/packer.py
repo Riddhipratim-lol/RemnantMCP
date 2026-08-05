@@ -49,13 +49,16 @@ class ContextPacker:
 
     Args:
         max_tokens: Upper token limit for the final context string.
-                    Defaults to 2 000 as specified in the architecture.
+                    Defaults to 8 000 — sized for Gemini-class AI clients
+                    (1M token context window) where richer context directly
+                    improves code suggestion quality.  Set lower if targeting
+                    a client with a tighter context budget.
     """
 
     HEADER = "=== PROJECT MEMORY CONTEXT ==="
     FOOTER = "=== END MEMORY CONTEXT ==="
 
-    def __init__(self, max_tokens: int = 2_000):
+    def __init__(self, max_tokens: int = 8_000):
         self.max_tokens = max_tokens
         try:
             self._enc = tiktoken.get_encoding(_TOKENIZER_ENCODING)

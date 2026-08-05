@@ -61,7 +61,8 @@ class RetrievalCoordinator:
         voyage_api_key:   Voyage AI API key.
         db_url:           PostgreSQL connection string.
         top_k_semantic:   Candidates to retrieve from Qdrant (default: 20).
-        max_tokens:       Default context token budget (default: 2 000).
+        max_tokens:       Default context token budget (default: 8 000, sized for
+                          Gemini-class clients with 1M token context windows).
     """
 
     def __init__(
@@ -74,7 +75,7 @@ class RetrievalCoordinator:
         voyage_api_key: Optional[str] = None,
         db_url: Optional[str] = None,
         top_k_semantic: int = 20,
-        max_tokens: int = 2_000,
+        max_tokens: int = 8_000,
     ):
         self.top_k_semantic = top_k_semantic
         self.max_tokens = max_tokens

@@ -307,3 +307,92 @@ def test_parse_git_repo_workspace_diffs_returned_without_commits(mocker):
     # Workspace diff must be present in the output
     assert "src/main.py" in diff
     assert any(s["file_path"] == "src/main.py" for s in stats)
+
+
+# ==========================================
+# 5. Tests for transcript chunking
+# ==========================================
+
+def test_chunk_transcript_short_text_not_split():
+    """Transcripts under the threshold are returned as a single chunk unchanged."""
+    from remnant.ingestion.coordinator import IngestionCoordinator
+
+    text = "This is a short session transcript."
+    chunks = IngestionCoordinator._chunk_transcript(text, max_chars=40_000)
+    assert chunks == [text]
+
+
+def test_chunk_transcript_long_text_split_into_multiple_chunks():
+    """A transcript exceeding max_chars must be split into multiple overlapping chunks."""
+    from remnant.ingestion.coordinator import IngestionCoordinator
+
+    # Build a text that is ~3x the max to guarantee at least 3 chunks
+    max_chars = 200
+    overlap = 20
+    line = "A" * 50 + "\n"  # 51-char lines
+    text = line * 15  # ~765 chars total
+
+    chunks = IngestionCoordinator._chunk_transcript(text, max_chars=max_chars, overlap=overlap)
+
+    assert len(chunks) >= 2, "Long transcript must produce multiple chunks"
+    # Every chunk must fit within max_chars (with a small newline nudge allowance)
+    for chunk in chunks:
+        assert len(chunk) <= max_chars + overlap, f"Chunk too large: {len(chunk)}"
+    # No chunk should be empty
+    assert all(chunk.strip() for chunk in chunks)
+
+
+def test_chunk_transcript_overlap_is_present():
+    """Consecutive chunks must share content so context is not lost at boundaries."""
+    from remnant.ingestion.coordinator import IngestionCoordinator
+
+    max_chars = 100
+    overlap = 20
+    # Build a simple deterministic text
+    text = "".join(f"word{i} " for i in range(200))  # ~1400 chars
+
+    chunks = IngestionCoordinator._chunk_transcript(text, max_chars=max_chars, overlap=overlap)
+
+    # Check that the end of chunk[0] appears somewhere near the start of chunk[1]
+    assert len(chunks) >= 2
+    tail_of_first = chunks[0][-(overlap * 2):]
+    start_of_second = chunks[1][: overlap * 2]
+    # They must share at least one common word (the overlap region)
+    assert any(word in start_of_second for word in tail_of_first.split() if word)
+
+
+def test_coordinator_long_transcript_produces_multiple_chat_artifacts(mocker):
+    """
+    When a chat_transcript exceeds the chunk threshold, the coordinator must
+    produce multiple CHAT artifacts (one per chunk), each carrying chunk metadata.
+    """
+    from remnant.ingestion.coordinator import (
+        IngestionCoordinator,
+        _TRANSCRIPT_CHUNK_MAX_CHARS,
+    )
+
+    mock_db = MockPostgresStorage()
+    mocker.patch(
+        "remnant.ingestion.coordinator.parse_git_repo",
+        return_value=("", [], [])
+    )
+
+    # Create a transcript that is guaranteed to need at least 2 chunks
+    long_transcript = ("X" * 100 + "\n") * (_TRANSCRIPT_CHUNK_MAX_CHARS // 100 + 5)
+
+    coordinator = IngestionCoordinator(db_storage=mock_db)
+    _, artifacts = coordinator.ingest_session(
+        repo_path="/mock/repo",
+        project_id="test-project",
+        chat_transcript=long_transcript,
+    )
+
+    chat_artifacts = [a for a in artifacts if a.source_type == SourceType.CHAT]
+    assert len(chat_artifacts) >= 2, (
+        "A transcript exceeding the chunk limit must produce multiple CHAT artifacts"
+    )
+    # Each chunk must carry its position metadata
+    for art in chat_artifacts:
+        assert "chunk_index" in art.metadata
+        assert "total_chunks" in art.metadata
+        assert art.metadata["total_chunks"] == len(chat_artifacts)

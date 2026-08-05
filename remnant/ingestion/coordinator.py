@@ -6,10 +6,71 @@ from remnant.ingestion.git_parser import parse_git_repo
 from remnant.ingestion.redactor import redact_content
 from remnant.ingestion.grouper import SessionGrouper
 
+# Maximum characters per chat artifact chunk fed to the extraction LLM.
+#
+# Basis: extraction LLM is google_genai:gemini-3.5-flash-lite which has a
+# 1 048 576 token context window.  At ~4 chars/token:
+#   500 000 chars ≈ 125 000 tokens  (leaves ~875k tokens for prompts + output)
+#
+# This means virtually no real-world coding session will ever be chunked.
+# Chunking is still applied as a safety net for pathologically long inputs
+# (e.g. automated test transcripts, multi-day session dumps).
+_TRANSCRIPT_CHUNK_MAX_CHARS: int = 500_000
+# Characters of overlap between consecutive chunks to avoid cutting mid-thought.
+_TRANSCRIPT_CHUNK_OVERLAP: int = 500
+
 class IngestionCoordinator:
     def __init__(self, db_storage: Optional[PostgresStorage] = None, window_hours: int = 4):
         self.db_storage = db_storage or PostgresStorage()
         self.grouper = SessionGrouper(db_storage=self.db_storage, window_hours=window_hours)
+
+    @staticmethod
+    def _chunk_transcript(
+        text: str,
+        max_chars: int = _TRANSCRIPT_CHUNK_MAX_CHARS,
+        overlap: int = _TRANSCRIPT_CHUNK_OVERLAP,
+    ) -> List[str]:
+        """
+        Split a long chat transcript into overlapping chunks so each chunk
+        can be sent to the extraction LLM independently without exceeding
+        its context window.
+
+        Strategy
+        --------
+        - If ``text`` fits within ``max_chars``, returns it as a single-element list
+          (no splitting — preserves existing behaviour for normal-length sessions).
+        - Otherwise, slides a window of size ``max_chars`` over the text, advancing
+          by ``(max_chars - overlap)`` characters each step.
+        - Each window boundary is nudged to the next newline character so that
+          chunks don't cut mid-sentence.
+
+        Args:
+            text:      The raw transcript string.
+            max_chars: Maximum number of characters per chunk (default 40 000).
+            overlap:   Characters of overlap between consecutive chunks (default 500).
+
+        Returns:
+            List of non-empty string chunks.  Always at least one element.
+        """
+        if len(text) <= max_chars:
+            return [text]
+
+        chunks: List[str] = []
+        step = max_chars - overlap
+        start = 0
+        while start < len(text):
+            end = start + max_chars
+            if end < len(text):
+                # Nudge the boundary to the next newline so we don't split mid-line.
+                newline_pos = text.find("\n", end)
+                if newline_pos != -1 and (newline_pos - end) < overlap:
+                    end = newline_pos + 1  # include the newline in this chunk
+            chunk = text[start:end].strip()
+            if chunk:
+                chunks.append(chunk)
+            start += step
+
+        return chunks if chunks else [text]
 
     def ingest_session(
         self,
@@ -111,12 +172,22 @@ class IngestionCoordinator:
         notes_content = session_notes if (session_notes and session_notes.strip()) else None
         raw_chat_content = chat_content or notes_content
         if raw_chat_content:
-            raw_artifacts.append({
-                "source_type": SourceType.CHAT,
-                "raw_content": raw_chat_content,
-                "timestamp": timestamp,
-                "metadata": {"session_notes": session_notes, "is_notes_fallback": chat_content is None},
-            })
+            is_notes_fallback = chat_content is None
+            chunks = self._chunk_transcript(raw_chat_content)
+            total_chunks = len(chunks)
+            for i, chunk in enumerate(chunks):
+                raw_artifacts.append({
+                    "source_type": SourceType.CHAT,
+                    "raw_content": chunk,
+                    "timestamp": timestamp,
+                    "metadata": {
+                        "session_notes": session_notes,
+                        "is_notes_fallback": is_notes_fallback,
+                        # Chunk provenance — useful for debugging and future dedup
+                        "chunk_index": i,
+                        "total_chunks": total_chunks,
+                    },
+                })
             
         # Error log / logs artifact
         if logs and logs.strip():
