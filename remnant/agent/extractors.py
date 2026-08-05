@@ -111,11 +111,13 @@ def code_extract(state: dict) -> dict:
         + _MEMORY_TYPE_GUIDE
         + "\nSource-specific hints for code artifacts:\n"
         "- ARCHITECTURAL_DECISION: Module structure choices, framework/library selections visible in imports or package changes, API design patterns, database schema migrations.\n"
-        "- IMPLEMENTATION_RATIONALE: Comments in diffs explaining why code was written a certain way, non-obvious algorithmic choices, docstring reasoning.\n"
+        "- IMPLEMENTATION_RATIONALE: Comments in diffs explaining why code was written a certain way, non-obvious algorithmic choices, docstring reasoning. "
+        "IMPORTANT: New helper/utility functions introduced to solve a recurring problem are IMPLEMENTATION_RATIONALE — capture them with the problem they solve and why they were extracted.\n"
         "- FAILED_APPROACH: Removed/reverted code blocks, commented-out alternatives, TODO/FIXME comments referencing abandoned paths, deleted files.\n"
         "- BUG_RESOLUTION: Fixes visible in diffs — what line changed and why, error handling additions, guard clauses, null checks added after observed failures.\n"
         "- DESIGN_TRADEOFF: One approach chosen while another is explicitly acknowledged in comments or commit messages.\n"
-        "- COMPONENT_RELATIONSHIP: Import changes, new service calls, dependency additions in requirements files, interface implementations, new foreign keys.\n"
+        "- COMPONENT_RELATIONSHIP: Import changes, new service calls, dependency additions in requirements files, interface implementations, new foreign keys. "
+        "Import cleanup (removing unused imports) is a COMPONENT_RELATIONSHIP — it documents the decoupling of a dependency.\n"
         "- CONSTRAINT: New linting rules, type annotations enforcing contracts, version pins in requirements, compatibility guard comments.\n"
     )
     user_prompt = (
@@ -132,17 +134,28 @@ def chat_extractor(state: dict) -> dict:
         "You are an expert engineering knowledge distiller analyzing a conversation between a developer and an AI assistant.\n"
         + _MEMORY_TYPE_GUIDE
         + "\nSource-specific hints for chat transcripts:\n"
-        "- ARCHITECTURAL_DECISION: Moments where the developer or AI commits to a structural choice (\"let's go with X\", \"we'll use Y instead\").\n"
+        "- ARCHITECTURAL_DECISION: Moments where the developer or AI commits to a structural choice ('let's go with X', 'we'll use Y instead').\n"
         "- IMPLEMENTATION_RATIONALE: Explanations of why a specific coding approach was suggested or accepted during discussion.\n"
         "- FAILED_APPROACH: Ideas proposed but explicitly rejected mid-conversation, approaches tried before the chat that the developer describes as failures.\n"
         "- BUG_RESOLUTION: Bug descriptions followed by agreed-upon root cause analyses and fixes, debugging sessions with conclusions.\n"
         "- DESIGN_TRADEOFF: Back-and-forth analysis where pros/cons of multiple options are discussed before settling on one.\n"
         "- COMPONENT_RELATIONSHIP: References to how services, modules, or files interact — even if mentioned informally in conversation.\n"
         "- CONSTRAINT: Requirements, deadlines, compatibility limits, or rules the developer explicitly states as non-negotiable or given.\n"
+        "\n"
+        "HANDLING SPARSE OR SUMMARISED INPUTS:\n"
+        "If the content is short (a few sentences or a paragraph summary rather than a full raw transcript), "
+        "extract knowledge more aggressively — treat each distinct engineering observation as a candidate memory. "
+        "Pay special attention to:\n"
+        "  - Deployment caveats: 'needs a redeploy', 'fix is in code but not live', 'server must be restarted' → CONSTRAINT\n"
+        "  - Infrastructure constraints: hardcoded values that caused failures, wrong config keys, environment mismatches → CONSTRAINT or BUG_RESOLUTION\n"
+        "  - Meta-decisions about the development process itself: how to use a tool, which parameter to omit, a workaround adopted → IMPLEMENTATION_RATIONALE or ARCHITECTURAL_DECISION\n"
+        "  - Known failure modes explicitly described: 'passing X to Y causes Z error' → FAILED_APPROACH\n"
+        "  - Partial write/storage warnings: when some backends succeeded and others failed → CONSTRAINT\n"
+        "Even a single sentence can contain a valid CONSTRAINT or FAILED_APPROACH memory — extract it.\n"
     )
     user_prompt = (
-        "Analyze this chat transcript and extract ALL structured memories present. "
-        "Look for all seven memory types throughout the conversation.\n\n"
+        "Analyze this chat transcript (or session summary) and extract ALL structured memories present. "
+        "If the input is short or summarised, be more aggressive: each distinct engineering insight or constraint is a separate memory.\n\n"
         "Content:\n{content}"
     )
     return _process_extraction(state, system_prompt, user_prompt)

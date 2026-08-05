@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     remnant_neo4j_url: Optional[str] = "bolt://localhost:7687"
     remnant_neo4j_username: Optional[str] = "neo4j"
     remnant_neo4j_password: Optional[str] = "password"
+    remnant_neo4j_database: Optional[str] = None   # Leave unset for AuraDB auto-detection
     voyage_api_key: Optional[str] = None
     gemini_api_key: Optional[str] = None
     remnant_project_root: Optional[str] = None

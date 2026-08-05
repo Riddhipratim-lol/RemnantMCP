@@ -43,10 +43,15 @@ class Neo4jClientManager:
         uri: str | None = None,
         user: str | None = None,
         password: str | None = None,
+        database: str | None = None,
     ) -> None:
         self.uri = uri or settings.remnant_neo4j_url
         self.user = user or settings.remnant_neo4j_username
         self.password = password or settings.remnant_neo4j_password
+        # None → driver auto-detects the database (correct for AuraDB).
+        # Set REMNANT_NEO4J_DATABASE env var to override (e.g. "neo4j" for
+        # local Community Edition instances that require an explicit name).
+        self.database = database if database is not None else settings.remnant_neo4j_database or None
         self.driver = GraphDatabase.driver(self.uri, auth=(self.user, self.password))
 
     def close(self) -> None:
@@ -79,7 +84,7 @@ class Neo4jClientManager:
             self._build_batch_params(memories, relationships)
         )
 
-        with self.driver.session(database="neo4j") as session:
+        with self.driver.session(database=self.database) as session:
             session.execute_write(
                 self._write_graph,
                 memory_rows,

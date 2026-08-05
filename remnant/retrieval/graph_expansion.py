@@ -108,7 +108,7 @@ class GraphExpansion:
             records, _, _ = self.driver.execute_query(
                 cypher,
                 seed_ids=seed_ids,
-                database_="neo4j",
+                database_=settings.remnant_neo4j_database or None,
             )
             return [r["related_id"] for r in records if r["related_id"]]
         except Exception as exc:

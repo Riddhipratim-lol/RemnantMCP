@@ -22,6 +22,64 @@ from remnant.storage.postgres import PostgresStorage
 
 
 # ---------------------------------------------------------------------------
+# Server-side root resolver
+# ---------------------------------------------------------------------------
+
+def resolve_server_root(client_project_root: Optional[str] = None) -> str:
+    """
+    Resolve the effective workspace root **from the server's perspective**.
+
+    Problem this solves
+    -------------------
+    When RemnantMCP is deployed remotely (Render, Railway, etc.) an AI client
+    may pass ``project_root`` as an absolute local path such as
+    ``/Users/alice/Projects/MyApp``.  That path does not exist on the server
+    filesystem, so:
+
+    * ``git remote get-url origin`` fails silently (NoSuchPathError),
+    * the project UUID is derived from the inaccessible local path instead of
+      the git remote URL, producing a *different* UUID than the one used when
+      memories were originally stored → queries return 0 results.
+
+    Resolution strategy
+    -------------------
+    1. If ``client_project_root`` is provided **and exists** on the current
+       filesystem, use it as-is (correct for local stdio deployments).
+    2. Otherwise fall back to ``REMNANT_PROJECT_ROOT`` env var (set by the
+       server's deployment config / IDE MCP env block).
+    3. Final fallback: ``os.getcwd()`` (the server process working directory).
+
+    Args:
+        client_project_root: The ``project_root`` value supplied by the AI
+                             tool call (may be None or a non-existent path).
+
+    Returns:
+        An absolute path string that is guaranteed to exist on the current
+        filesystem, or the best available server-side root if nothing is
+        accessible.
+    """
+    # Fast path: caller supplied nothing — use server defaults immediately.
+    if not client_project_root:
+        return settings.remnant_project_root or os.getcwd()
+
+    # Check if the supplied path is accessible on *this* filesystem.
+    if os.path.isdir(client_project_root):
+        return client_project_root
+
+    # The path doesn't exist here — this server is running remotely and
+    # received a local machine path from the AI client.  Silently fall back
+    # to the server-configured root so project_id resolution stays stable.
+    server_root = settings.remnant_project_root or os.getcwd()
+    print(
+        f"[ProjectDetector] project_root '{client_project_root}' is not accessible "
+        f"on this server filesystem. Falling back to server root: '{server_root}'. "
+        "This is expected when RemnantMCP is deployed remotely and the AI client "
+        "passes a local machine path."
+    )
+    return server_root
+
+
+# ---------------------------------------------------------------------------
 # URL normalisation
 # ---------------------------------------------------------------------------
 
@@ -141,7 +199,7 @@ class ProjectDetector:
         Returns:
             Stable UUID string (str) identifying this project.
         """
-        root = project_root or settings.remnant_project_root or os.getcwd()
+        root = resolve_server_root(project_root)
 
         raw_url = get_git_remote_url(root)
         if raw_url:

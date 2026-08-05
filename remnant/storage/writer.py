@@ -1,5 +1,6 @@
 from typing import List, Tuple, Dict, Any
 import uuid
+from remnant.config import settings
 from remnant.storage.postgres import PostgresStorage
 from remnant.storage.voyage import VoyageClient
 from remnant.storage.qdrant import QdrantClientManager
@@ -26,7 +27,10 @@ class FanOutWriter:
             print(f"Qdrant init skipped/failed: {e}")
             
         try:
-            self.neo4j = Neo4jClientManager(uri=neo4j_url)
+            self.neo4j = Neo4jClientManager(
+                uri=neo4j_url,
+                database=settings.remnant_neo4j_database or None,
+            )
         except Exception as e:
             print(f"Neo4j init skipped/failed: {e}")
 

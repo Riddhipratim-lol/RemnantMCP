@@ -14,15 +14,13 @@ Each function is a plain Python callable decorated by the MCP server in
 makes unit testing straightforward without spinning up a live MCP server.
 """
 
-import os
-from remnant.config import settings
 import time
 from typing import Any, Dict, List, Optional
 
 from remnant.agent.graph import build_graph
 from remnant.ingestion.coordinator import IngestionCoordinator
 from remnant.mcp.audit import AuditLogger
-from remnant.mcp.project import ProjectDetector
+from remnant.mcp.project import ProjectDetector, resolve_server_root
 from remnant.retrieval.coordinator import RetrievalCoordinator
 from remnant.storage.postgres import PostgresStorage
 from remnant.structures import MemoryType
@@ -114,7 +112,7 @@ def remember_session(
         }
     """
     t0 = time.monotonic()
-    root = project_root or settings.remnant_project_root or os.getcwd()
+    root = resolve_server_root(project_root)
 
     # Resolve project first so audit log always records the real UUID
     resolved_project_id = project_id or _get_project_detector().resolve(root)
@@ -260,7 +258,7 @@ def recall_context(
         }
     """
     t0 = time.monotonic()
-    root = project_root or settings.remnant_project_root or os.getcwd()
+    root = resolve_server_root(project_root)
 
     resolved_project_id = project_id or _get_project_detector().resolve(root)
 
@@ -352,7 +350,7 @@ def list_decisions(
         }
     """
     t0 = time.monotonic()
-    root = project_root or settings.remnant_project_root or os.getcwd()
+    root = resolve_server_root(project_root)
 
     resolved_project_id = project_id or _get_project_detector().resolve(root)
 
@@ -419,7 +417,7 @@ def get_failed_approaches(
         }
     """
     t0 = time.monotonic()
-    root = project_root or settings.remnant_project_root or os.getcwd()
+    root = resolve_server_root(project_root)
 
     resolved_project_id = project_id or _get_project_detector().resolve(root)
 

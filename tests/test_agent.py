@@ -430,3 +430,69 @@ def test_zero_memories_pipeline():
     assert res_writer["storage_results"]["memories_written"] == 0
 
 
+# ---------------------------------------------------------------------------
+# Extractor prompt coverage (no LLM call required)
+# ---------------------------------------------------------------------------
+
+def test_chat_extractor_prompt_contains_sparse_input_guidance():
+    """
+    Verify that the chat_extractor system prompt includes the SPARSE INPUT
+    handling section so summarised transcripts get aggressive extraction.
+    """
+    import inspect
+    from remnant.agent import extractors
+
+    source = inspect.getsource(extractors.chat_extractor)
+    assert "HANDLING SPARSE OR SUMMARISED INPUTS" in source, (
+        "chat_extractor must contain the sparse/summary input handling section"
+    )
+    assert "deployment" in source.lower(), (
+        "chat_extractor must mention deployment caveats as extractable knowledge"
+    )
+
+
+def test_code_extract_prompt_mentions_helper_functions():
+    """
+    Verify that code_extract prompt calls out new helper/utility functions
+    as IMPLEMENTATION_RATIONALE candidates.
+    """
+    import inspect
+    from remnant.agent import extractors
+
+    source = inspect.getsource(extractors.code_extract)
+    assert "helper" in source.lower() or "utility" in source.lower(), (
+        "code_extract must mention helper/utility functions in its prompt"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Neo4j database param propagation
+# ---------------------------------------------------------------------------
+
+def test_neo4j_client_manager_accepts_database_param():
+    """
+    Neo4jClientManager must accept and store the database param so it can
+    pass None (AuraDB auto-detect) instead of the hardcoded 'neo4j' string.
+    """
+    from unittest.mock import patch, MagicMock
+    from remnant.storage.neo4j import Neo4jClientManager
+
+    with patch("remnant.storage.neo4j.GraphDatabase.driver") as mock_driver:
+        mock_driver.return_value = MagicMock()
+        # Explicit database name
+        client = Neo4jClientManager(
+            uri="bolt://localhost:7687",
+            user="neo4j",
+            password="test",
+            database="mydb",
+        )
+        assert client.database == "mydb"
+
+        # None database → driver auto-detect (AuraDB case)
+        client_auto = Neo4jClientManager(
+            uri="bolt://localhost:7687",
+            user="neo4j",
+            password="test",
+            database=None,
+        )
+        assert client_auto.database is None

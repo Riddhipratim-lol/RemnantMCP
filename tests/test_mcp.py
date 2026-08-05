@@ -722,3 +722,71 @@ def _get_registered_tool_names(mcp_instance) -> set:
                 return set(val.keys())
 
     return set()
+
+
+# ---------------------------------------------------------------------------
+# 5. resolve_server_root() — mcp/project.py
+# ---------------------------------------------------------------------------
+
+
+class TestResolveServerRoot:
+    """
+    Tests for the resolve_server_root() filesystem guard introduced to fix
+    the 0-results bug where a local macOS path passed to a remote server
+    generated a mismatched project UUID.
+    """
+
+    def test_none_input_returns_server_default(self, tmp_path):
+        """When no project_root is supplied, returns settings root or cwd."""
+        from remnant.mcp.project import resolve_server_root
+
+        with patch("remnant.mcp.project.settings") as mock_settings:
+            mock_settings.remnant_project_root = str(tmp_path)
+            result = resolve_server_root(None)
+        assert result == str(tmp_path)
+
+    def test_empty_string_treated_as_none(self, tmp_path):
+        """Empty string is falsy — treated the same as None."""
+        from remnant.mcp.project import resolve_server_root
+
+        with patch("remnant.mcp.project.settings") as mock_settings:
+            mock_settings.remnant_project_root = str(tmp_path)
+            result = resolve_server_root("")
+        assert result == str(tmp_path)
+
+    def test_existing_path_returned_unchanged(self, tmp_path):
+        """When the supplied path exists on this filesystem, use it as-is."""
+        from remnant.mcp.project import resolve_server_root
+
+        result = resolve_server_root(str(tmp_path))
+        assert result == str(tmp_path)
+
+    def test_nonexistent_path_falls_back_to_server_root(self, tmp_path, capsys):
+        """
+        When the supplied path does not exist (remote server scenario),
+        silently falls back to the server-configured root and logs a message.
+        """
+        from remnant.mcp.project import resolve_server_root
+
+        nonexistent = "/Users/alice/Projects/MyApp"  # local macOS path
+        with patch("remnant.mcp.project.settings") as mock_settings:
+            mock_settings.remnant_project_root = str(tmp_path)
+            result = resolve_server_root(nonexistent)
+
+        assert result == str(tmp_path)
+        captured = capsys.readouterr()
+        assert "not accessible" in captured.out
+        assert nonexistent in captured.out
+
+    def test_fallback_uses_cwd_when_no_env_var(self, tmp_path):
+        """When REMNANT_PROJECT_ROOT is unset and path is inaccessible, uses cwd."""
+        import os
+        from remnant.mcp.project import resolve_server_root
+
+        nonexistent = "/nonexistent/path/xyz"
+        with patch("remnant.mcp.project.settings") as mock_settings:
+            mock_settings.remnant_project_root = None
+            with patch("remnant.mcp.project.os.getcwd", return_value=str(tmp_path)):
+                result = resolve_server_root(nonexistent)
+
+        assert result == str(tmp_path)
